@@ -166,3 +166,42 @@
     color: var(--color-foreground);
   }
 }
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility bg-hero {
+  background-image: var(--gradient-hero);
+}
+
+@utility text-gradient {
+  background-image: var(--gradient-accent);
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-gradient-accent {
+  background-image: var(--gradient-accent);
+}
+
+@utility shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+@utility grid-lines {
+  background-image: linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
