@@ -396,12 +396,14 @@ function Report({ result }: { result: AuditResult }) {
               Copy these straight into your page.
             </p>
             <div className="mt-5 space-y-4">
-              {[
-                ["Title tag", result.rewrites.title],
-                ["Meta description", result.rewrites.description],
-                ["H1", result.rewrites.h1],
-                ["URL slug", result.rewrites.slugTip],
-              ].map(([label, value]) => (
+              {(
+                [
+                  ["Title tag", result.rewrites.title],
+                  ["Meta description", result.rewrites.description],
+                  ["H1", result.rewrites.h1],
+                  ["URL slug", result.rewrites.slugTip],
+                ] as [string, string][]
+              ).map(([label, value]) => (
                 <div key={label}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-xs tracking-wide text-muted-foreground uppercase">
