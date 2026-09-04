@@ -1,38 +1,41 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
+  AlertTriangle,
   Bot,
   Check,
+  Copy,
   Gauge,
+  Info,
   Link2,
+  Loader2,
   Radar,
-  RefreshCw,
   Search,
   Sparkles,
-  Wrench,
+  TrendingUp,
+  XCircle,
 } from "lucide-react";
 import heroImage from "@/assets/hero-agent.jpg";
-import { SECTIONS, TOTAL_ITEMS } from "@/data/checklist";
-
-const STORAGE_KEY = "seo-agent-checklist-v1";
+import { auditSite, type AuditResult, type Severity } from "@/lib/audit.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "SEO Agent — The Only SEO Checklist You Need" },
+      { title: "SEO Agent — Scan, Fix & Optimize Any Website" },
       {
         name: "description",
         content:
-          "An advanced SEO AI agent that audits, tracks and executes the full SEO checklist: technical, content, keywords, links and agentic search.",
+          "Enter a URL and the SEO agent scans the whole page, finds every issue, and writes the fixes — titles, metas, headers, speed, keywords and backlinks.",
       },
-      { property: "og:title", content: "SEO Agent — The Only SEO Checklist You Need" },
+      { property: "og:title", content: "SEO Agent — Scan, Fix & Optimize Any Website" },
       {
         property: "og:description",
         content:
-          "Run the complete SEO checklist with an AI agent: technical fixes, keyword research, on-page, link building and AI visibility.",
+          "Instant technical, on-page, speed, content, link and AI-visibility audit with ready-to-ship fixes and rewritten metadata.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [{ rel: "canonical", href: "/" }],
@@ -45,7 +48,7 @@ export const Route = createFileRoute("/")({
           name: "SEO Agent",
           applicationCategory: "BusinessApplication",
           description:
-            "Advanced SEO AI agent that runs the complete SEO checklist across technical, content, keyword, link and agentic search workstreams.",
+            "AI SEO agent that scans a website URL, detects issues and generates the fixes to improve speed, rankings, traffic and SEO score.",
         }),
       },
     ],
@@ -56,59 +59,51 @@ export const Route = createFileRoute("/")({
 const CAPABILITIES = [
   {
     icon: Radar,
-    title: "Continuous crawl",
-    body: "The agent re-crawls your site, diffs every change and opens tasks the moment something regresses.",
-  },
-  {
-    icon: Search,
-    title: "Keyword intelligence",
-    body: "Intent clustering, competitor gaps, keyword maps and the AI prompts people actually ask.",
+    title: "Full-page crawl",
+    body: "Fetches your URL, parses every tag, header and asset, and scores six workstreams.",
   },
   {
     icon: Gauge,
-    title: "Technical autopilot",
-    body: "Crawl errors, redirect chains, Core Web Vitals, indexability and structured data — triaged by impact.",
+    title: "Speed diagnostics",
+    body: "TTFB, payload size, compression, caching and render-blocking resources.",
+  },
+  {
+    icon: Search,
+    title: "Keyword extraction",
+    body: "Real term frequency and density, checked against your title and H1.",
   },
   {
     icon: Link2,
-    title: "Link & brand radar",
-    body: "Backlink gaps, unlinked mentions and fresh link opportunities surfaced weekly.",
+    title: "Link & authority plan",
+    body: "Internal/external link profile plus a concrete backlink action list.",
   },
   {
     icon: Bot,
-    title: "Agentic search readiness",
-    body: "Audits how LLMs read you, structures content for AI answers and drafts your LLMs.txt.",
+    title: "AI visibility",
+    body: "How LLM crawlers and answer engines read your page — and what's missing.",
   },
   {
-    icon: RefreshCw,
+    icon: TrendingUp,
     title: "Ships the fix",
-    body: "Titles, metas, alt text, internal links — the agent writes the change, you approve it.",
+    body: "Rewritten title, description and H1 you can copy straight into your site.",
   },
 ];
 
+const SEV_META: Record<Severity, { label: string; icon: typeof XCircle; cls: string }> = {
+  critical: { label: "Critical", icon: XCircle, cls: "text-rose-400 border-rose-400/40 bg-rose-400/10" },
+  warning: { label: "Warning", icon: AlertTriangle, cls: "text-amber-400 border-amber-400/40 bg-amber-400/10" },
+  notice: { label: "Notice", icon: Info, cls: "text-sky-400 border-sky-400/40 bg-sky-400/10" },
+  passed: { label: "Passed", icon: Check, cls: "text-mint border-mint/40 bg-mint/10" },
+};
+
 function Home() {
-  const [done, setDone] = useState<Record<string, boolean>>({});
-  const [hydrated, setHydrated] = useState(false);
+  const [url, setUrl] = useState("");
+  const scan = useServerFn(auditSite);
+  const mutation = useMutation<AuditResult, Error, string>({
+    mutationFn: (value) => scan({ data: { url: value } }),
+  });
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setDone(JSON.parse(raw) as Record<string, boolean>);
-    } catch {
-      /* ignore */
-    }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(done));
-  }, [done, hydrated]);
-
-  const completed = useMemo(() => Object.values(done).filter(Boolean).length, [done]);
-  const pct = Math.round((completed / TOTAL_ITEMS) * 100);
-
-  const toggle = (key: string) => setDone((prev) => ({ ...prev, [key]: !prev[key] }));
+  const result = mutation.data;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -121,73 +116,87 @@ function Home() {
             SEO Agent
           </a>
           <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
+            <a className="transition-colors hover:text-foreground" href="#scan">
+              Scan
+            </a>
             <a className="transition-colors hover:text-foreground" href="#capabilities">
               Capabilities
-            </a>
-            <a className="transition-colors hover:text-foreground" href="#checklist">
-              Checklist
             </a>
             <a className="transition-colors hover:text-foreground" href="#workflow">
               Workflow
             </a>
           </nav>
           <a
-            href="#checklist"
+            href="#scan"
             className="rounded-full bg-gradient-accent px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
-            Run the audit
+            Scan a site
           </a>
         </div>
       </header>
 
       <section id="top" className="relative overflow-hidden bg-hero">
         <div className="pointer-events-none absolute inset-0 grid-lines opacity-40" />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 md:py-28 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 md:py-24 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground">
               <span className="size-1.5 rounded-full bg-mint" />
               Autonomous SEO, end to end
             </span>
-            <h1 className="mt-6 text-5xl leading-[0.95] font-bold md:text-7xl">
-              The only SEO checklist
+            <h1 className="mt-6 text-5xl leading-[0.95] font-bold md:text-6xl">
+              Scan any website.
               <br />
-              <span className="text-gradient">you need</span>
+              <span className="text-gradient">Fix every SEO issue.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-              An AI agent that works the entire checklist for you — basics, keywords, technical,
-              content, links and agentic search — then keeps it green forever.
+              The agent crawls your URL, finds what's breaking your rankings, and writes the exact
+              fixes — titles, meta descriptions, headers, tags, speed, keywords and backlinks.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="#checklist"
-                className="rounded-full bg-gradient-accent px-6 py-3 font-semibold text-primary-foreground shadow-glow transition-transform hover:-translate-y-0.5"
+
+            <form
+              id="scan"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (url.trim()) mutation.mutate(url.trim());
+              }}
+              className="mt-8 flex flex-col gap-3 sm:flex-row"
+            >
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="yourwebsite.com"
+                inputMode="url"
+                aria-label="Website URL"
+                className="flex-1 rounded-full border border-border bg-card px-5 py-3 text-base outline-none placeholder:text-muted-foreground focus:border-mint"
+              />
+              <button
+                type="submit"
+                disabled={mutation.isPending || !url.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-accent px-6 py-3 font-semibold text-primary-foreground shadow-glow transition-transform hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
               >
-                Start the checklist
-              </a>
-              <a
-                href="#capabilities"
-                className="rounded-full border border-border px-6 py-3 font-semibold text-foreground transition-colors hover:bg-secondary"
-              >
-                See what it does
-              </a>
-            </div>
-            <dl className="mt-12 grid max-w-lg grid-cols-3 gap-6">
-              {[
-                [`${TOTAL_ITEMS}`, "checklist actions"],
-                [`${SECTIONS.length}`, "workstreams"],
-                ["24/7", "monitoring"],
-              ].map(([value, label]) => (
-                <div key={label}>
-                  <dt className="font-display text-3xl font-bold text-mint">{value}</dt>
-                  <dd className="text-xs tracking-wide text-muted-foreground uppercase">{label}</dd>
-                </div>
-              ))}
-            </dl>
+                {mutation.isPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Scanning…
+                  </>
+                ) : (
+                  <>
+                    <Radar className="size-4" /> Scan &amp; optimize
+                  </>
+                )}
+              </button>
+            </form>
+            {mutation.isError && (
+              <p className="mt-3 text-sm text-rose-400">{mutation.error.message}</p>
+            )}
+            <p className="mt-3 text-xs text-muted-foreground">
+              No signup. The agent audits technical, on-page, speed, content, links and AI
+              visibility in one pass.
+            </p>
           </div>
           <div className="relative">
             <img
               src={heroImage}
-              alt="Visualization of an SEO agent mapping a site's link graph"
+              alt="Visualization of an SEO agent mapping a website's link graph"
               width={1600}
               height={1000}
               className="w-full rounded-2xl border border-border object-cover shadow-glow"
@@ -196,11 +205,13 @@ function Home() {
         </div>
       </section>
 
+      {result && <Report result={result} />}
+
       <section id="capabilities" className="mx-auto max-w-6xl px-5 py-20">
         <h2 className="text-3xl font-bold md:text-4xl">What the agent handles</h2>
         <p className="mt-3 max-w-2xl text-muted-foreground">
-          Every item below maps to a real task in the checklist. The agent detects it, prioritises
-          it, and proposes the fix.
+          Every check runs against your live HTML and response headers — no guesswork, no generic
+          advice.
         </p>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {CAPABILITIES.map(({ icon: Icon, title, body }) => (
@@ -218,129 +229,23 @@ function Home() {
         </div>
       </section>
 
-      <section id="checklist" className="border-y border-border bg-surface">
+      <section id="workflow" className="border-t border-border bg-surface">
         <div className="mx-auto max-w-6xl px-5 py-20">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <div>
-              <h2 className="text-3xl font-bold md:text-4xl">The complete SEO checklist</h2>
-              <p className="mt-3 max-w-2xl text-muted-foreground">
-                Tick items off as you go — progress is saved in your browser.
-              </p>
-            </div>
-            <div className="min-w-64">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Progress</span>
-                <span className="font-display font-bold text-mint">
-                  {completed}/{TOTAL_ITEMS}
-                </span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
-                <div
-                  className="h-full rounded-full bg-gradient-accent transition-all duration-500"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <button
-                onClick={() => setDone({})}
-                className="mt-3 text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-              >
-                Reset checklist
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-12 space-y-12">
-            {SECTIONS.map((section) => (
-              <div key={section.id} className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
-                <div>
-                  <div className="flex items-center gap-4">
-                    <h3 className="text-2xl font-bold whitespace-nowrap">{section.title}</h3>
-                    <span className="h-px flex-1 bg-border" />
-                  </div>
-                  <ul className="mt-5 grid gap-2 sm:grid-cols-2">
-                    {section.items.map((item) => {
-                      const key = `${section.id}:${item}`;
-                      const checked = Boolean(done[key]);
-                      return (
-                        <li key={key}>
-                          <button
-                            onClick={() => toggle(key)}
-                            aria-pressed={checked}
-                            className="flex w-full items-start gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-card"
-                          >
-                            <span
-                              className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-[5px] transition-colors ${
-                                checked
-                                  ? section.accent === "mint"
-                                    ? "bg-mint text-primary-foreground"
-                                    : "bg-violet text-accent-foreground"
-                                  : section.accent === "mint"
-                                    ? "bg-mint/25"
-                                    : "bg-violet/25"
-                              }`}
-                            >
-                              {checked && <Check className="size-3.5" strokeWidth={3} />}
-                            </span>
-                            <span
-                              className={`text-[15px] ${checked ? "text-muted-foreground line-through" : ""}`}
-                            >
-                              {item}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-                <div className="rounded-2xl border border-border bg-card p-6">
-                  <h4 className="flex items-center gap-2 text-lg font-semibold">
-                    <Wrench className="size-4 text-mint" />
-                    Tools
-                  </h4>
-                  <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                    {section.tools.map((tool) => (
-                      <li key={tool} className="flex items-center gap-2">
-                        <span className="size-1.5 rounded-full bg-violet" />
-                        {tool}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+          <h2 className="text-3xl font-bold md:text-4xl">How the agent works</h2>
+          <ol className="mt-10 grid gap-4 md:grid-cols-4">
+            {[
+              ["01", "Paste the URL", "The agent fetches the page and its robots.txt and sitemap."],
+              ["02", "Score", "Six categories scored, issues ranked by severity and impact."],
+              ["03", "Fix", "Rewritten metadata, headers, schema and speed remediation steps."],
+              ["04", "Re-scan", "Ship the changes, scan again and watch the score climb."],
+            ].map(([step, title, body]) => (
+              <li key={step} className="rounded-2xl border border-border bg-card p-6">
+                <span className="font-display text-sm font-bold text-mint">{step}</span>
+                <h3 className="mt-2 text-lg font-semibold">{title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+              </li>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="workflow" className="mx-auto max-w-6xl px-5 py-20">
-        <h2 className="text-3xl font-bold md:text-4xl">How the agent works</h2>
-        <ol className="mt-10 grid gap-4 md:grid-cols-4">
-          {[
-            ["01", "Connect", "Point the agent at your domain and search data sources."],
-            ["02", "Crawl & score", "It audits every checklist item and scores impact vs effort."],
-            ["03", "Fix", "It drafts the changes — copy, metadata, schema, internal links."],
-            ["04", "Watch", "Continuous monitoring reopens anything that regresses."],
-          ].map(([step, title, body]) => (
-            <li key={step} className="rounded-2xl border border-border bg-card p-6">
-              <span className="font-display text-sm font-bold text-mint">{step}</span>
-              <h3 className="mt-2 text-lg font-semibold">{title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{body}</p>
-            </li>
-          ))}
-        </ol>
-
-        <div className="mt-16 overflow-hidden rounded-3xl border border-border bg-hero p-10 text-center">
-          <h2 className="text-3xl font-bold md:text-4xl">Put the checklist on autopilot</h2>
-          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Let the agent run all {TOTAL_ITEMS} actions across your site and report back with a
-            ranked fix list.
-          </p>
-          <a
-            href="#checklist"
-            className="mt-8 inline-block rounded-full bg-gradient-accent px-7 py-3 font-semibold text-primary-foreground shadow-glow transition-transform hover:-translate-y-0.5"
-          >
-            Run the audit
-          </a>
+          </ol>
         </div>
       </section>
 
@@ -348,5 +253,280 @@ function Home() {
         SEO Agent — advanced SEO, executed by AI.
       </footer>
     </main>
+  );
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard.writeText(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+    >
+      {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
+function ScoreRing({ score, grade }: { score: number; grade: string }) {
+  const dash = `${score * 2.83} 283`;
+  return (
+    <div className="relative grid size-36 place-items-center">
+      <svg viewBox="0 0 100 100" className="absolute size-36 -rotate-90">
+        <circle cx="50" cy="50" r="45" className="fill-none stroke-secondary" strokeWidth="8" />
+        <circle
+          cx="50"
+          cy="50"
+          r="45"
+          className="fill-none stroke-mint transition-all duration-1000"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={dash}
+        />
+      </svg>
+      <div className="text-center">
+        <div className="font-display text-4xl font-bold text-mint">{score}</div>
+        <div className="text-xs tracking-wide text-muted-foreground uppercase">Grade {grade}</div>
+      </div>
+    </div>
+  );
+}
+
+function Report({ result }: { result: AuditResult }) {
+  const [filter, setFilter] = useState<Severity | "all">("all");
+  const counts = (["critical", "warning", "notice", "passed"] as Severity[]).map(
+    (s) => [s, result.issues.filter((i) => i.severity === s).length] as const,
+  );
+  const issues = result.issues.filter((i) => filter === "all" || i.severity === filter);
+  const s = result.stats;
+
+  return (
+    <section id="report" className="border-y border-border bg-surface">
+      <div className="mx-auto max-w-6xl space-y-14 px-5 py-16">
+        <div className="flex flex-wrap items-center justify-between gap-8">
+          <div>
+            <h2 className="text-3xl font-bold md:text-4xl">SEO report</h2>
+            <p className="mt-2 break-all text-muted-foreground">{result.finalUrl}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Scanned {new Date(result.fetchedAt).toLocaleString()} · TTFB {result.ttfbMs}ms ·{" "}
+              {Math.round(result.htmlBytes / 1024)} KB HTML
+            </p>
+          </div>
+          <ScoreRing score={result.score} grade={result.grade} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {result.categories.map((c) => (
+            <div key={c.id} className="rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">{c.label}</h3>
+                <span className="font-display font-bold text-mint">{c.score}</span>
+              </div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-gradient-accent transition-all duration-700"
+                  style={{ width: `${c.score}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {c.passed}/{c.total} checks passing
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="mr-2 text-2xl font-bold">Issues &amp; fixes</h3>
+            <button
+              onClick={() => setFilter("all")}
+              className={`rounded-full border px-3 py-1 text-xs ${filter === "all" ? "border-mint text-mint" : "border-border text-muted-foreground"}`}
+            >
+              All {result.issues.length}
+            </button>
+            {counts.map(([sev, n]) => (
+              <button
+                key={sev}
+                onClick={() => setFilter(sev)}
+                className={`rounded-full border px-3 py-1 text-xs ${filter === sev ? SEV_META[sev].cls : "border-border text-muted-foreground"}`}
+              >
+                {SEV_META[sev].label} {n}
+              </button>
+            ))}
+          </div>
+          <div className="mt-6 space-y-3">
+            {issues.map((issue) => {
+              const meta = SEV_META[issue.severity];
+              const Icon = meta.icon;
+              return (
+                <article key={issue.id} className="rounded-2xl border border-border bg-card p-5">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}
+                    >
+                      <Icon className="size-3" />
+                      {meta.label}
+                    </span>
+                    <h4 className="text-lg font-semibold">{issue.title}</h4>
+                    <span className="ml-auto text-xs text-muted-foreground">{issue.impact}</span>
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">{issue.detail}</p>
+                  {issue.severity !== "passed" && (
+                    <p className="mt-3 rounded-xl bg-secondary/60 p-3 text-sm">
+                      <span className="font-semibold text-mint">Fix: </span>
+                      {issue.fix}
+                    </p>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h3 className="text-xl font-bold">Optimized metadata</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Copy these straight into your page.
+            </p>
+            <div className="mt-5 space-y-4">
+              {(
+                [
+                  ["Title tag", result.rewrites.title],
+                  ["Meta description", result.rewrites.description],
+                  ["H1", result.rewrites.h1],
+                  ["URL slug", result.rewrites.slugTip],
+                ] as [string, string][]
+              ).map(([label, value]) => (
+                <div key={label}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                      {label}
+                    </span>
+                    <CopyButton value={value} />
+                  </div>
+                  <p className="mt-1 rounded-xl bg-secondary/60 p-3 text-sm">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h3 className="text-xl font-bold">Projected impact</h3>
+            <p className="mt-1 text-sm text-muted-foreground">After shipping every fix above.</p>
+            <table className="mt-5 w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs tracking-wide text-muted-foreground uppercase">
+                  <th className="pb-2">Metric</th>
+                  <th className="pb-2">Now</th>
+                  <th className="pb-2">After</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.projections.map((p) => (
+                  <tr key={p.metric} className="border-t border-border/60">
+                    <td className="py-2 pr-2">
+                      {p.metric}
+                      <span className="block text-xs text-muted-foreground">{p.note}</span>
+                    </td>
+                    <td className="py-2 pr-2 text-muted-foreground">{p.now}</td>
+                    <td className="py-2 font-semibold text-mint">{p.after}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h3 className="text-xl font-bold">Keywords found on page</h3>
+            <table className="mt-5 w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs tracking-wide text-muted-foreground uppercase">
+                  <th className="pb-2">Term</th>
+                  <th className="pb-2">Uses</th>
+                  <th className="pb-2">Density</th>
+                  <th className="pb-2">In title / H1</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.keywords.map((k) => (
+                  <tr key={k.term} className="border-t border-border/60">
+                    <td className="py-2 pr-2">{k.term}</td>
+                    <td className="py-2 pr-2 text-muted-foreground">{k.count}</td>
+                    <td className="py-2 pr-2 text-muted-foreground">{k.density.toFixed(2)}%</td>
+                    <td className="py-2">
+                      <span className={k.inTitle ? "text-mint" : "text-muted-foreground"}>
+                        {k.inTitle ? "Title" : "—"}
+                      </span>
+                      {" / "}
+                      <span className={k.inH1 ? "text-mint" : "text-muted-foreground"}>
+                        {k.inH1 ? "H1" : "—"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h3 className="text-xl font-bold">Backlink &amp; authority plan</h3>
+            <ul className="mt-5 space-y-4">
+              {result.backlinks.map((b) => (
+                <li key={b.action} className="flex gap-3">
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-violet" />
+                  <div>
+                    <p className="font-semibold">{b.action}</p>
+                    <p className="text-sm text-muted-foreground">{b.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="text-xl font-bold">Page vitals</h3>
+          <dl className="mt-5 grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {[
+              ["Title length", `${s.titleLength} chars`],
+              ["Description length", `${s.descriptionLength} chars`],
+              ["Word count", `${s.wordCount}`],
+              ["H1 count", `${s.h1.length}`],
+              ["Images", `${s.images} (${s.imagesMissingAlt} missing alt)`],
+              ["Internal links", `${s.internalLinks}`],
+              ["External links", `${s.externalLinks} (${s.nofollowExternal} nofollow)`],
+              ["Scripts", `${s.scripts} (${s.blockingScripts} blocking)`],
+              ["Stylesheets", `${s.stylesheets}`],
+              ["HTTPS", s.https ? "Yes" : "No"],
+              ["Compression", s.compressed ? "Enabled" : "Missing"],
+              ["Cache-Control", s.cacheControl ?? "Not set"],
+              ["Canonical", s.canonical ?? "Missing"],
+              ["Robots meta", s.robotsMeta ?? "Default"],
+              ["robots.txt", s.robotsTxt],
+              ["sitemap.xml", s.sitemap],
+              ["Language", s.lang ?? "Not set"],
+              ["Viewport", s.viewport ? "Set" : "Missing"],
+              ["Open Graph tags", `${s.ogTags}`],
+              ["Twitter tags", `${s.twitterTags}`],
+              ["Structured data", s.jsonLdTypes.length ? s.jsonLdTypes.join(", ") : "None"],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-secondary/50 p-3">
+                <dt className="text-xs tracking-wide text-muted-foreground uppercase">{label}</dt>
+                <dd className="mt-1 break-words text-sm font-medium">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
+    </section>
   );
 }

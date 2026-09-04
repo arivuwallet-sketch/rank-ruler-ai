@@ -80,7 +80,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "SEO Agent — Advanced SEO AI Agent" },
       {
         name: "description",
-        content: "An advanced SEO AI agent that runs the complete SEO checklist for your site.",
+        content:
+          "An advanced SEO AI agent that scans your website, finds every issue and ships the fixes.",
       },
       { property: "og:site_name", content: "SEO Agent" },
       { property: "og:type", content: "website" },

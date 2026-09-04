@@ -170,7 +170,7 @@ export const auditSite = createServerFn({ method: "POST" })
 
     const headings: { level: number; text: string }[] = [];
     for (const m of html.matchAll(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi)) {
-      const text = decode(m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " "));
+      const text = decode((m[2] ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " "));
       if (text) headings.push({ level: Number(m[1]), text });
     }
     const h1 = headings.filter((h) => h.level === 1).map((h) => h.text);
@@ -215,7 +215,7 @@ export const auditSite = createServerFn({ method: "POST" })
       /<script\b[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi,
     )) {
       try {
-        const parsed = JSON.parse(m[1].trim());
+        const parsed = JSON.parse((m[1] ?? "").trim());
         const collect = (v: unknown) => {
           if (Array.isArray(v)) v.forEach(collect);
           else if (v && typeof v === "object") {
@@ -250,8 +250,8 @@ export const auditSite = createServerFn({ method: "POST" })
       freq.set(w, (freq.get(w) ?? 0) + 1);
     }
     for (let i = 0; i < words.length - 1; i++) {
-      const a = words[i];
-      const b = words[i + 1];
+      const a = words[i] ?? "";
+      const b = words[i + 1] ?? "";
       if (a.length < 4 || b.length < 4 || STOP.has(a) || STOP.has(b)) continue;
       const p = `${a} ${b}`;
       freq.set(p, (freq.get(p) ?? 0) + 1);
@@ -278,8 +278,8 @@ export const auditSite = createServerFn({ method: "POST" })
     const add = (i: Issue) => issues.push(i);
     const titleLength = titleText?.length ?? 0;
     const descriptionLength = description?.length ?? 0;
-    const primary = keywords[0]?.term ?? new URL(finalUrl).hostname.split(".")[0];
-    const brand = new URL(finalUrl).hostname.replace(/^www\./, "").split(".")[0];
+    const primary = keywords[0]?.term ?? new URL(finalUrl).hostname.split(".")[0] ?? "your topic";
+    const brand = new URL(finalUrl).hostname.replace(/^www\./, "").split(".")[0] ?? "Your site";
     const brandName = titleCaseKeyword(brand);
 
     // On-page
@@ -371,7 +371,7 @@ export const auditSite = createServerFn({ method: "POST" })
         category: "onpage",
         severity: "passed",
         title: "Single, clear H1",
-        detail: h1[0],
+        detail: h1[0] ?? "",
         fix: "No change needed.",
         impact: "Rankings",
       });
@@ -709,7 +709,7 @@ export const auditSite = createServerFn({ method: "POST" })
         impact: "Rankings",
       });
 
-    if (keywords.length && !keywords[0].inTitle)
+    if (keywords.length && !keywords[0]?.inTitle)
       add({
         id: "keyword-title",
         category: "content",
