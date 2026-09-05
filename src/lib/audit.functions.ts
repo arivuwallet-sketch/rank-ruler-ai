@@ -1084,5 +1084,7 @@ export const auditSite = createServerFn({ method: "POST" })
       rewrites,
       projections,
       backlinks,
+      generative,
+
     };
   });
