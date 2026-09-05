@@ -444,6 +444,10 @@ function Report({ result }: { result: AuditResult }) {
           </div>
         </div>
 
+        <GenerativeStudio g={result.generative} />
+
+
+
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border border-border bg-card p-6">
             <h3 className="text-xl font-bold">Keywords found on page</h3>
