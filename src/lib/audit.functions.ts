@@ -1,5 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { buildGenerative, type GenerativeOutput } from "./generative";
+
+export type { GenerativeOutput } from "./generative";
+
 
 export type Severity = "critical" | "warning" | "notice" | "passed";
 
@@ -58,7 +62,9 @@ export type AuditResult = {
   rewrites: { title: string; description: string; h1: string; slugTip: string };
   projections: { metric: string; now: string; after: string; note: string }[];
   backlinks: { action: string; detail: string }[];
+  generative: GenerativeOutput;
 };
+
 
 const CATEGORY_LABELS: Record<CategoryId, string> = {
   technical: "Technical SEO",
@@ -841,7 +847,101 @@ export const auditSite = createServerFn({ method: "POST" })
       impact: "AI visibility",
     });
 
+    // ---- AEO / GEO checks ----
+    const questionHeadings = headings.filter((h) => h.text.trim().endsWith("?")).length;
+    add(
+      questionHeadings >= 2
+        ? {
+            id: "aeo-question-headings",
+            category: "ai",
+            severity: "passed",
+            title: "Question-based headings present",
+            detail: `${questionHeadings} headings are phrased as user questions.`,
+            fix: "Keep a 40–60 word direct answer immediately under each one.",
+            impact: "AI visibility",
+          }
+        : {
+            id: "aeo-question-headings",
+            category: "ai",
+            severity: "warning",
+            title: "Headings aren't phrased as questions",
+            detail: "Answer engines match question-shaped headings to conversational queries.",
+            fix: 'Rewrite section titles as explicit questions ("How does X work?") and follow each with a 40–60 word direct answer capsule.',
+            impact: "AI visibility",
+          },
+    );
+
+    const hasFaqSchema = jsonLdTypes.some((t) => /faqpage/i.test(t));
+    add(
+      hasFaqSchema
+        ? {
+            id: "aeo-faq-schema",
+            category: "ai",
+            severity: "passed",
+            title: "FAQPage schema found",
+            detail: "Q&A pairs are machine-readable for AI Overviews and chat citations.",
+            fix: "Keep answers verbatim-matched to the on-page text.",
+            impact: "AI visibility",
+          }
+        : {
+            id: "aeo-faq-schema",
+            category: "ai",
+            severity: "warning",
+            title: "No FAQPage schema",
+            detail: "Without explicit Q&A markup, answer engines must guess your answers.",
+            fix: "Ship the unified @graph JSON-LD generated below (Organization + BreadcrumbList + Article + FAQPage).",
+            impact: "AI visibility",
+          },
+    );
+
+    const statMatches = (bodyText.match(/\d[\d,.]*\s?(%|percent|x\b|million|billion)/gi) ?? []).length;
+    add(
+      statMatches >= 3
+        ? {
+            id: "geo-data-points",
+            category: "ai",
+            severity: "passed",
+            title: "Verifiable data points on page",
+            detail: `${statMatches} numeric claims found — strong GEO citation signal.`,
+            fix: "Attribute each figure to a named source with a date.",
+            impact: "AI visibility",
+          }
+        : {
+            id: "geo-data-points",
+            category: "ai",
+            severity: "warning",
+            title: "Too few statistics for generative engines",
+            detail: `Only ${statMatches} numeric claim(s) detected. LLMs cite pages with specific, verifiable numbers.`,
+            fix: "Add at least 3 percentages, benchmarks or metrics, each with a named source and year.",
+            impact: "AI visibility",
+          },
+    );
+
+    const hasOrgSchema = jsonLdTypes.some((t) => /organization|localbusiness/i.test(t));
+    add(
+      hasOrgSchema
+        ? {
+            id: "geo-entity",
+            category: "ai",
+            severity: "passed",
+            title: "Brand entity is grounded",
+            detail: "Organization schema links the brand to its offerings.",
+            fix: "Add sameAs links (LinkedIn, X, Wikidata) to strengthen entity resolution.",
+            impact: "AI visibility",
+          }
+        : {
+            id: "geo-entity",
+            category: "ai",
+            severity: "warning",
+            title: "Brand entity not grounded for LLMs",
+            detail: "No Organization schema, so AI models can't map the brand to its niche.",
+            fix: "Add an Organization node with name, url, logo and sameAs profiles, referenced by Article.publisher.",
+            impact: "AI visibility",
+          },
+    );
+
     // ---- scoring ----
+
     const WEIGHT: Record<Severity, number> = { critical: 0, warning: 0.5, notice: 0.8, passed: 1 };
     const cats = (Object.keys(CATEGORY_LABELS) as CategoryId[]).map((id) => {
       const list = issues.filter((i) => i.category === id);
@@ -927,7 +1027,21 @@ export const auditSite = createServerFn({ method: "POST" })
       },
     ];
 
+    const generative = buildGenerative({
+      finalUrl,
+      brandName,
+      primary,
+      secondary: keywords[1]?.term ?? "",
+      title: titleText,
+      description,
+      headings,
+      bodyText,
+      keywords,
+      logoUrl: metaContent(html, "property", "og:image"),
+    });
+
     return {
+
       url: input,
       finalUrl,
       fetchedAt: new Date().toISOString(),
@@ -970,5 +1084,7 @@ export const auditSite = createServerFn({ method: "POST" })
       rewrites,
       projections,
       backlinks,
+      generative,
+
     };
   });
