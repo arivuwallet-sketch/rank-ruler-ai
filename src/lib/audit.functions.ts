@@ -1027,7 +1027,21 @@ export const auditSite = createServerFn({ method: "POST" })
       },
     ];
 
+    const generative = buildGenerative({
+      finalUrl,
+      brandName,
+      primary,
+      secondary: keywords[1]?.term ?? "",
+      title: titleText,
+      description,
+      headings,
+      bodyText,
+      keywords,
+      logoUrl: metaContent(html, "property", "og:image"),
+    });
+
     return {
+
       url: input,
       finalUrl,
       fetchedAt: new Date().toISOString(),
