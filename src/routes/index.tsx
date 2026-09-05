@@ -18,7 +18,13 @@ import {
   XCircle,
 } from "lucide-react";
 import heroImage from "@/assets/hero-agent.jpg";
-import { auditSite, type AuditResult, type Severity } from "@/lib/audit.functions";
+import {
+  auditSite,
+  type AuditResult,
+  type GenerativeOutput,
+  type Severity,
+} from "@/lib/audit.functions";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
