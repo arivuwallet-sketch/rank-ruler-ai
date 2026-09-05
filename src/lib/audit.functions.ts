@@ -1,5 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { buildGenerative, type GenerativeOutput } from "./generative";
+
+export type { GenerativeOutput } from "./generative";
+
 
 export type Severity = "critical" | "warning" | "notice" | "passed";
 
