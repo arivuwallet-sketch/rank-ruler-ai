@@ -62,7 +62,9 @@ export type AuditResult = {
   rewrites: { title: string; description: string; h1: string; slugTip: string };
   projections: { metric: string; now: string; after: string; note: string }[];
   backlinks: { action: string; detail: string }[];
+  generative: GenerativeOutput;
 };
+
 
 const CATEGORY_LABELS: Record<CategoryId, string> = {
   technical: "Technical SEO",
