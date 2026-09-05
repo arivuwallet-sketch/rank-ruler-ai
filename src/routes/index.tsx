@@ -540,3 +540,247 @@ function Report({ result }: { result: AuditResult }) {
     </section>
   );
 }
+
+function CharBadge({ n, min, max }: { n: number; min: number; max: number }) {
+  const ok = n >= min && n <= max;
+  return (
+    <span
+      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+        ok
+          ? "border-mint/40 bg-mint/10 text-mint"
+          : "border-amber-400/40 bg-amber-400/10 text-amber-400"
+      }`}
+    >
+      {n} chars · target {min}–{max}
+    </span>
+  );
+}
+
+function GenerativeStudio({ g }: { g: GenerativeOutput }) {
+  const [tab, setTab] = useState<"aeo" | "geo" | "schema" | "json">("aeo");
+  const schemaJson = JSON.stringify(g.json_ld_schema, null, 2);
+  const cleanJson = JSON.stringify(
+    {
+      seo_metadata: g.seo_metadata,
+      aeo_content: {
+        primary_question_heading: g.aeo_content.primary_question_heading,
+        direct_answer_capsule: g.aeo_content.direct_answer_capsule,
+      },
+      geo_signals: {
+        data_points_included: g.geo_signals.data_points_included,
+        entity_associations: g.geo_signals.entity_associations,
+      },
+      json_ld_schema: g.json_ld_schema,
+    },
+    null,
+    2,
+  );
+  const displayUrl = g.context.url.replace(/^https?:\/\//, "").replace(/\/$/, "").split("/").join(" › ");
+  const tabs = [
+    ["aeo", "AEO answers"],
+    ["geo", "GEO signals"],
+    ["schema", "JSON-LD @graph"],
+    ["json", "Agent output"],
+  ] as const;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h3 className="text-2xl font-bold">SEO · AEO · GEO studio</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Unified metadata, answer capsules and machine-readable schema for Google and answer
+            engines like ChatGPT Search, Gemini and Perplexity.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          {[
+            ["Page type", g.context.pageType],
+            ["Brand entity", g.context.brandName],
+            ["Primary keyword", g.context.primaryKeyword],
+          ].map(([k, v]) => (
+            <span key={k} className="rounded-full border border-border bg-card px-3 py-1">
+              <span className="text-muted-foreground">{k}: </span>
+              <span className="font-medium">{v}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h4 className="text-lg font-semibold">Google SERP snippet preview</h4>
+        <div className="mt-4 rounded-xl bg-secondary/50 p-4">
+          <p className="text-xs text-muted-foreground">{displayUrl}</p>
+          <p className="mt-1 text-lg font-medium text-sky-400">{g.seo_metadata.title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{g.seo_metadata.description}</p>
+        </div>
+        <div className="mt-4 space-y-4">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                Title tag
+              </span>
+              <div className="flex items-center gap-2">
+                <CharBadge n={g.seo_metadata.title_char_count} min={50} max={60} />
+                <CopyButton value={g.seo_metadata.title} />
+              </div>
+            </div>
+            <p className="mt-1 rounded-xl bg-secondary/60 p-3 text-sm">{g.seo_metadata.title}</p>
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                Meta description
+              </span>
+              <div className="flex items-center gap-2">
+                <CharBadge n={g.seo_metadata.description_char_count} min={140} max={155} />
+                <CopyButton value={g.seo_metadata.description} />
+              </div>
+            </div>
+            <p className="mt-1 rounded-xl bg-secondary/60 p-3 text-sm">
+              {g.seo_metadata.description}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {tabs.map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
+              tab === id ? "border-mint text-mint" : "border-border text-muted-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "aeo" && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl border border-mint/40 bg-card p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-lg font-semibold">Direct answer capsule</h4>
+              <span className="rounded-full border border-mint/40 bg-mint/10 px-2 py-0.5 text-[11px] text-mint">
+                {g.aeo_content.answer_word_count} words · target 40–60
+              </span>
+            </div>
+            <p className="mt-3 text-sm font-medium">{g.aeo_content.primary_question_heading}</p>
+            <p className="mt-2 rounded-xl bg-secondary/60 p-3 text-sm">
+              {g.aeo_content.direct_answer_capsule}
+            </p>
+            <div className="mt-3">
+              <CopyButton value={g.aeo_content.direct_answer_capsule} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h4 className="text-lg font-semibold">Question-based heading rewrites</h4>
+            {g.aeo_content.heading_rewrites.length ? (
+              <ul className="mt-4 space-y-3 text-sm">
+                {g.aeo_content.heading_rewrites.map((r) => (
+                  <li key={r.from} className="rounded-xl bg-secondary/50 p-3">
+                    <span className="text-muted-foreground line-through">{r.from}</span>
+                    <span className="mt-1 block font-medium text-mint">{r.to}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Headings already read as questions — keep each one followed by a 40–60 word answer.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
+            <h4 className="text-lg font-semibold">Q&amp;A set for FAQPage schema</h4>
+            <ul className="mt-4 space-y-4">
+              {g.aeo_content.faqs.map((f) => (
+                <li key={f.question}>
+                  <p className="font-medium">{f.question}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{f.answer}</p>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {g.aeo_content.structured_formats.map((s) => (
+                <div key={s.label} className="rounded-xl bg-secondary/50 p-3">
+                  <p className="text-sm font-semibold text-mint">{s.label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{s.recommendation}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "geo" && (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h4 className="text-lg font-semibold">Data &amp; statistics</h4>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              {g.geo_signals.data_points_included.map((d) => (
+                <li key={d} className="flex gap-2">
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-mint" />
+                  {d}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h4 className="text-lg font-semibold">Entity grounding</h4>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              {g.geo_signals.entity_associations.map((e) => (
+                <li key={e} className="rounded-lg bg-secondary/50 px-3 py-2">
+                  {e}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h4 className="text-lg font-semibold">Citation hooks</h4>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              {g.geo_signals.citation_hooks.map((c) => (
+                <li key={c} className="flex gap-2">
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-violet" />
+                  {c}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 rounded-xl bg-secondary/60 p-3 text-sm italic">
+              {g.geo_signals.expert_quote}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {tab === "schema" && (
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h4 className="text-lg font-semibold">
+              Unified @graph — Organization · BreadcrumbList · Article · FAQPage
+            </h4>
+            <CopyButton value={schemaJson} />
+          </div>
+          <pre className="mt-4 max-h-96 overflow-auto rounded-xl bg-secondary/50 p-4 text-xs leading-relaxed">
+            {schemaJson}
+          </pre>
+        </div>
+      )}
+
+      {tab === "json" && (
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h4 className="text-lg font-semibold">Agent output (clean JSON)</h4>
+            <CopyButton value={cleanJson} />
+          </div>
+          <pre className="mt-4 max-h-96 overflow-auto rounded-xl bg-secondary/50 p-4 text-xs leading-relaxed">
+            {cleanJson}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
