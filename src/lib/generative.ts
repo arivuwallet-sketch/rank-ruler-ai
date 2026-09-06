@@ -3,6 +3,8 @@
 
 export type PageType = "Landing Page" | "Blog / Article" | "Product" | "FAQ" | "Category" | "Docs";
 
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export type GenerativeOutput = {
   context: {
     url: string;
@@ -33,7 +35,7 @@ export type GenerativeOutput = {
     citation_hooks: string[];
     expert_quote: string;
   };
-  json_ld_schema: Record<string, unknown>;
+  json_ld_schema: JsonValue;
 };
 
 const QUESTION_WORDS = /^(what|how|why|when|where|who|which|can|do|does|is|are|should)\b/i;
