@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { buildGenerative, type GenerativeOutput } from "./generative";
+import { buildLevel3, type Level3Output } from "./level3";
 
 export type { GenerativeOutput } from "./generative";
+export type { Level3Output } from "./level3";
 
 
 export type Severity = "critical" | "warning" | "notice" | "passed";
@@ -63,6 +65,7 @@ export type AuditResult = {
   projections: { metric: string; now: string; after: string; note: string }[];
   backlinks: { action: string; detail: string }[];
   generative: GenerativeOutput;
+  level3: Level3Output;
 };
 
 
@@ -1040,6 +1043,15 @@ export const auditSite = createServerFn({ method: "POST" })
       logoUrl: metaContent(html, "property", "og:image"),
     });
 
+    const level3 = buildLevel3({
+      finalUrl,
+      brandName,
+      primary,
+      secondary: keywords[1]?.term ?? "",
+      bodyText,
+      generative,
+    });
+
     return {
 
       url: input,
@@ -1085,6 +1097,6 @@ export const auditSite = createServerFn({ method: "POST" })
       projections,
       backlinks,
       generative,
-
+      level3,
     };
   });
