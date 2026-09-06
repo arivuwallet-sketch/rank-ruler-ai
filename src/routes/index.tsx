@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
   Bot,
+  Eye,
+  FlaskConical,
+  Rocket,
+  Terminal,
   Check,
   Copy,
   Gauge,
@@ -22,6 +26,7 @@ import {
   auditSite,
   type AuditResult,
   type GenerativeOutput,
+  type Level3Output,
   type Severity,
 } from "@/lib/audit.functions";
 
@@ -451,6 +456,9 @@ function Report({ result }: { result: AuditResult }) {
         </div>
 
         <GenerativeStudio g={result.generative} />
+
+        <CommandCenter l3={result.level3} g={result.generative} />
+
 
 
 
