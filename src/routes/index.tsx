@@ -792,3 +792,412 @@ function GenerativeStudio({ g }: { g: GenerativeOutput }) {
     </div>
   );
 }
+
+function CodeBlock({ label, value, lang }: { label: string; value: string; lang: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h4 className="text-lg font-semibold">{label}</h4>
+        <CopyButton value={value} />
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{lang}</p>
+      <pre className="mt-4 max-h-96 overflow-auto rounded-xl bg-secondary/50 p-4 text-xs leading-relaxed whitespace-pre-wrap">
+        {value}
+      </pre>
+    </div>
+  );
+}
+
+function CommandCenter({ l3, g }: { l3: Level3Output; g: GenerativeOutput }) {
+  const [tab, setTab] = useState<"exports" | "testing" | "monitor" | "agents">("exports");
+  const [view, setView] = useState<"human" | "crawler">("human");
+  const [deployed, setDeployed] = useState(false);
+  const [autoPromote, setAutoPromote] = useState(true);
+  const [refreshed, setRefreshed] = useState<string[]>([]);
+  const [fixedHallucination, setFixedHallucination] = useState(false);
+  const [swarmStep, setSwarmStep] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setSwarmStep((s) => (s + 1) % 6), 900);
+    return () => clearInterval(t);
+  }, []);
+
+  const agents = [
+    { name: "Researcher", task: "Crawled page, extracted entities & keywords" },
+    { name: "Strategist", task: "Mapped intent, picked 4-layer optimization plan" },
+    { name: "Writer", task: "Drafted metadata, capsules & llms.txt block" },
+    { name: "Coder", task: "Verified Writer's JSON-LD schema logic" },
+  ];
+  const tabs = [
+    ["exports", "Code exports"],
+    ["testing", "Testing & simulation"],
+    ["monitor", "Monitoring"],
+    ["agents", "Agent swarm"],
+  ] as const;
+  const displayUrl = g.context.url.replace(/^https?:\/\//, "").replace(/\/$/, "").split("/").join(" › ");
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h3 className="text-2xl font-bold">Level-3 command center</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Autonomous discovery layer — llms.txt, voice markup, OpenAPI, multi-variant testing,
+            content decay and trend intelligence.
+          </p>
+        </div>
+        <button
+          onClick={() => setDeployed(true)}
+          disabled={deployed}
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow transition-transform hover:-translate-y-0.5 disabled:opacity-70 disabled:hover:translate-y-0"
+        >
+          <Rocket className="size-4" />
+          {deployed ? "Deployed" : "Deploy to edge"}
+        </button>
+      </div>
+      {deployed && (
+        <p className="rounded-xl border border-mint/40 bg-mint/10 px-4 py-3 text-sm text-mint">
+          Metadata and Schema injected at the Edge network. Live in 300ms.
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {tabs.map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
+              tab === id ? "border-mint text-mint" : "border-border text-muted-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "exports" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h4 className="text-lg font-semibold">Agent-routing preview</h4>
+              <div className="flex gap-2">
+                {(["human", "crawler"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
+                      view === v ? "border-mint text-mint" : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    <Eye className="size-3" />
+                    {v === "human" ? "Human view" : "Crawler view"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {view === "human" ? (
+              <div className="mt-4 rounded-xl bg-secondary/50 p-4">
+                <p className="text-xs text-muted-foreground">{displayUrl}</p>
+                <p className="mt-1 text-lg font-medium text-sky-400">{g.seo_metadata.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{g.seo_metadata.description}</p>
+              </div>
+            ) : (
+              <pre className="mt-4 max-h-72 overflow-auto rounded-xl bg-secondary/50 p-4 text-xs leading-relaxed whitespace-pre-wrap">
+                {l3.llms_txt}
+              </pre>
+            )}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Crawler view shows the markdown served to OpenAIbot, PerplexityBot and other agentic
+              crawlers.
+            </p>
+          </div>
+          <CodeBlock label="llms.txt (AAO payload)" lang="text/markdown · publish at /llms.txt" value={l3.llms_txt} />
+          <CodeBlock label="SSML voice markup" lang="application/ssml+xml · wraps the AEO answer capsule" value={l3.ssml} />
+          <CodeBlock label="openapi.json (agentic API)" lang="application/json · lets autonomous agents query your inventory" value={l3.openapi_json} />
+        </div>
+      )}
+
+      {tab === "testing" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h4 className="text-lg font-semibold">Multi-variant testing</h4>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Five title/description variants with simulated live traffic distribution.
+                </p>
+              </div>
+              <button
+                onClick={() => setAutoPromote((v) => !v)}
+                className={`rounded-full border px-3 py-1 text-xs ${
+                  autoPromote ? "border-mint text-mint" : "border-border text-muted-foreground"
+                }`}
+              >
+                Auto-promote winner: {autoPromote ? "on" : "off"}
+              </button>
+            </div>
+            <ul className="mt-5 space-y-4">
+              {l3.mvt_variants.map((v, i) => (
+                <li key={v.title} className="rounded-xl bg-secondary/50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium">
+                      <span className="mr-2 text-xs text-muted-foreground">V{i + 1}</span>
+                      {v.title}
+                    </p>
+                    <span
+                      className={`text-xs font-semibold ${v.ctrDelta.startsWith("-") ? "text-rose-400" : "text-mint"}`}
+                    >
+                      CTR {v.ctrDelta.startsWith("-") ? "" : "+"}
+                      {v.ctrDelta}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{v.description}</p>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full rounded-full bg-gradient-accent" style={{ width: `${v.trafficShare}%` }} />
+                    </div>
+                    <span className="text-xs text-muted-foreground">{v.trafficShare}% traffic</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="size-5 text-mint" />
+              <h4 className="text-lg font-semibold">Simulation console</h4>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Generated content tested against {l3.retrieval_confidence.queriesSimulated.toLocaleString()} simulated AI queries.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-8">
+              <div>
+                <p className="font-display text-5xl font-bold text-mint">
+                  {l3.retrieval_confidence.score}%
+                </p>
+                <p className="mt-1 text-xs tracking-wide text-muted-foreground uppercase">
+                  Retrieval confidence
+                </p>
+              </div>
+              <ul className="flex-1 space-y-2">
+                {l3.retrieval_confidence.breakdown.map((b) => (
+                  <li key={b.engine} className="flex items-center gap-3 text-sm">
+                    <span className="w-28 shrink-0">{b.engine}</span>
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full rounded-full bg-gradient-accent" style={{ width: `${b.likelihood}%` }} />
+                    </div>
+                    <span className="w-10 text-right text-xs text-muted-foreground">{b.likelihood}%</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "monitor" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h4 className="text-lg font-semibold">Self-healing sentinel</h4>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Content decay alerts — URLs dropping &gt;20% clicks over 30 days (Search Console feed).
+            </p>
+            <table className="mt-5 w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs tracking-wide text-muted-foreground uppercase">
+                  <th className="pb-2">URL</th>
+                  <th className="pb-2">Clicks (prev 30d)</th>
+                  <th className="pb-2">Now</th>
+                  <th className="pb-2">Change</th>
+                  <th className="pb-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {l3.sentinel.map((s) => (
+                  <tr key={s.url} className="border-t border-border/60">
+                    <td className="max-w-40 truncate py-2 pr-2">{s.url}</td>
+                    <td className="py-2 pr-2 text-muted-foreground">{s.clicksBefore}</td>
+                    <td className="py-2 pr-2 text-muted-foreground">{s.clicksNow}</td>
+                    <td className="py-2 pr-2">
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                          refreshed.includes(s.url) || s.status === "stable"
+                            ? "border-mint/40 bg-mint/10 text-mint"
+                            : "border-rose-400/40 bg-rose-400/10 text-rose-400"
+                        }`}
+                      >
+                        {refreshed.includes(s.url) ? "refreshed" : s.status === "stable" ? `-${s.dropPct}% stable` : `-${s.dropPct}% decaying`}
+                      </span>
+                    </td>
+                    <td className="py-2 text-right">
+                      {s.status === "decaying" && !refreshed.includes(s.url) && (
+                        <button
+                          onClick={() => setRefreshed((r) => [...r, s.url])}
+                          className="rounded-full border border-mint/40 px-3 py-1 text-xs text-mint"
+                        >
+                          Auto-refresh
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h4 className="text-lg font-semibold">Competitor watchlist</h4>
+            <ul className="mt-5 space-y-4">
+              {l3.competitor_watch.map((c) => (
+                <li key={c.url} className="rounded-xl bg-secondary/50 p-4 text-sm">
+                  <p className="break-all text-xs text-muted-foreground">{c.url}</p>
+                  <p className="mt-2">
+                    <span className="text-muted-foreground line-through">{c.oldTitle}</span>
+                    <span className="mt-1 block font-medium text-amber-400">NEW: {c.newTitle}</span>
+                  </p>
+                  <p className="mt-2 rounded-lg bg-secondary/70 p-2 text-xs">
+                    <span className="font-semibold text-mint">Counter-strategy: </span>
+                    {c.counter}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h4 className="text-lg font-semibold">Trend predictions (zero-day oracle)</h4>
+            <ul className="mt-5 space-y-4">
+              {l3.trend_predictions.map((t) => (
+                <li key={t.topic} className="flex flex-wrap items-center gap-4 rounded-xl bg-secondary/50 p-4">
+                  <span className="font-display text-2xl font-bold text-mint">{t.opportunity}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{t.topic}</p>
+                    <p className="text-xs text-muted-foreground">{t.source} · {t.angle}</p>
+                  </div>
+                  <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+                    Opportunity score
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {tab === "agents" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border bg-card p-6 font-mono text-sm">
+            <div className="flex items-center gap-2">
+              <Terminal className="size-5 text-mint" />
+              <h4 className="font-sans text-lg font-semibold">Live agent activity</h4>
+            </div>
+            <ul className="mt-5 space-y-3">
+              {agents.map((a, i) => {
+                const state = swarmStep > i + 1 ? "done" : swarmStep === i + 1 ? "running" : "queued";
+                return (
+                  <li key={a.name} className="flex items-center gap-3">
+                    <span
+                      className={`size-2 rounded-full ${
+                        state === "done" ? "bg-mint" : state === "running" ? "animate-pulse bg-amber-400" : "bg-secondary"
+                      }`}
+                    />
+                    <span className="w-28 shrink-0 font-semibold">{a.name}</span>
+                    <span className="text-muted-foreground">{a.task}</span>
+                    <span className={`ml-auto text-xs ${state === "done" ? "text-mint" : state === "running" ? "text-amber-400" : "text-muted-foreground"}`}>
+                      {state === "done" ? "✓ done" : state === "running" ? "running…" : "queued"}
+                    </span>
+                  </li>
+                );
+              })}
+              <li className="flex items-center gap-3 border-t border-border/60 pt-3">
+                <span className={`size-2 rounded-full ${swarmStep >= 5 ? "bg-mint" : "bg-secondary"}`} />
+                <span className="w-28 shrink-0 font-semibold">Verification</span>
+                <span className="text-muted-foreground">Coder checked Writer's schema logic — @graph valid</span>
+                <span className={`ml-auto text-xs ${swarmStep >= 5 ? "text-mint" : "text-muted-foreground"}`}>
+                  {swarmStep >= 5 ? "✓ passed" : "pending"}
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <h4 className="text-lg font-semibold">Hallucination check</h4>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Simulated LLM probe: “{l3.hallucination.prompt}”
+              </p>
+              <p className="mt-3 rounded-xl bg-secondary/60 p-3 text-sm italic">
+                {l3.hallucination.llmAnswer}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <span
+                  className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                    l3.hallucination.verdict === "correct" || fixedHallucination
+                      ? "border-mint/40 bg-mint/10 text-mint"
+                      : "border-rose-400/40 bg-rose-400/10 text-rose-400"
+                  }`}
+                >
+                  {fixedHallucination ? "corrected" : l3.hallucination.verdict}
+                </span>
+                {l3.hallucination.verdict === "hallucinated" && !fixedHallucination && (
+                  <button
+                    onClick={() => setFixedHallucination(true)}
+                    className="rounded-full border border-mint/40 px-3 py-1 text-xs text-mint"
+                  >
+                    Fix hallucination
+                  </button>
+                )}
+              </div>
+              {(fixedHallucination || l3.hallucination.verdict === "correct") && (
+                <p className="mt-3 rounded-xl bg-secondary/60 p-3 text-xs text-muted-foreground">
+                  {l3.hallucination.correction}
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <h4 className="text-lg font-semibold">Information gain engine</h4>
+              <ul className="mt-4 space-y-3 text-sm">
+                {l3.info_gaps.map((gap) => (
+                  <li key={gap} className="rounded-xl bg-secondary/50 p-3 text-muted-foreground">{gap}</li>
+                ))}
+              </ul>
+              <h4 className="mt-6 text-lg font-semibold">Knowledge graph linker</h4>
+              <ul className="mt-3 space-y-2 text-sm">
+                {l3.knowledge_graph.sameAs.map((s) => (
+                  <li key={s} className="break-all rounded-lg bg-secondary/50 px-3 py-2 text-xs text-muted-foreground">{s}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h4 className="text-lg font-semibold">Semantic internal linking</h4>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Top vector matches from your page embeddings (pgvector similarity).
+            </p>
+            <table className="mt-5 w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs tracking-wide text-muted-foreground uppercase">
+                  <th className="pb-2">Target URL</th>
+                  <th className="pb-2">Suggested anchor</th>
+                  <th className="pb-2">Relevance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {l3.internal_links.map((l) => (
+                  <tr key={l.url} className="border-t border-border/60">
+                    <td className="max-w-52 truncate py-2 pr-2">{l.url}</td>
+                    <td className="py-2 pr-2 text-mint">{l.anchor}</td>
+                    <td className="py-2 text-muted-foreground">{Math.round(l.relevance * 100)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
