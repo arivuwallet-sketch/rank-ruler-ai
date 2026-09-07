@@ -2,9 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { buildGenerative, type GenerativeOutput } from "./generative";
 import { buildLevel3, type Level3Output } from "./level3";
+import { detectPageType } from "./generative";
+import { extractMainText, isBoilerplateTerm, synthesizeContext, type PageContext } from "./semantic";
 
 export type { GenerativeOutput } from "./generative";
 export type { Level3Output } from "./level3";
+export type { PageContext } from "./semantic";
 
 
 export type Severity = "critical" | "warning" | "notice" | "passed";
@@ -64,6 +67,7 @@ export type AuditResult = {
   rewrites: { title: string; description: string; h1: string; slugTip: string };
   projections: { metric: string; now: string; after: string; note: string }[];
   backlinks: { action: string; detail: string }[];
+  pageContext: PageContext;
   generative: GenerativeOutput;
   level3: Level3Output;
 };
@@ -1054,7 +1058,7 @@ export const auditSite = createServerFn({ method: "POST" })
       finalUrl,
       brandName,
       primary,
-      secondary: keywords[1]?.term ?? "",
+      secondary,
       title: titleText,
       description,
       headings,
@@ -1067,7 +1071,7 @@ export const auditSite = createServerFn({ method: "POST" })
       finalUrl,
       brandName,
       primary,
-      secondary: keywords[1]?.term ?? "",
+      secondary,
       bodyText,
       generative,
     });
@@ -1113,6 +1117,7 @@ export const auditSite = createServerFn({ method: "POST" })
         twitterTags,
       },
       keywords,
+      pageContext,
       rewrites,
       projections,
       backlinks,
