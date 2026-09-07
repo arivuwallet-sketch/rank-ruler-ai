@@ -293,9 +293,23 @@ export const auditSite = createServerFn({ method: "POST" })
     const add = (i: Issue) => issues.push(i);
     const titleLength = titleText?.length ?? 0;
     const descriptionLength = description?.length ?? 0;
-    const primary = keywords[0]?.term ?? new URL(finalUrl).hostname.split(".")[0] ?? "your topic";
     const brand = new URL(finalUrl).hostname.replace(/^www\./, "").split(".")[0] ?? "Your site";
     const brandName = titleCaseKeyword(brand);
+    // Step 2 — synthesis: what this page really is, before any generation.
+    const pageContext = synthesizeContext({
+      finalUrl,
+      brandName,
+      title: titleText,
+      h1,
+      headings,
+      keywords,
+      mainText: bodyText,
+      removed: removedBoilerplate,
+      pageType: detectPageType(finalUrl, headings),
+    });
+    const primary = pageContext.primaryKeyword;
+    const secondary = pageContext.secondaryKeyword;
+
 
     // On-page
     if (!titleText)
