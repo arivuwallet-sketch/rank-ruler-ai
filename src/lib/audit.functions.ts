@@ -244,25 +244,30 @@ export const auditSite = createServerFn({ method: "POST" })
     const ogTags = (html.match(/<meta\b[^>]*property=["']og:/gi) ?? []).length;
     const twitterTags = (html.match(/<meta\b[^>]*name=["']twitter:/gi) ?? []).length;
 
-    const bodyText = decode(
+    const rawBodyText = decode(
       (html.split(/<body[^>]*>/i)[1] ?? html)
         .replace(/<(script|style|noscript|svg)[\s\S]*?<\/\1>/gi, " ")
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " "),
     );
-    const words = bodyText.toLowerCase().match(/[a-z][a-z'-]{1,}/g) ?? [];
+    // Step 1 — strip UI boilerplate before anything is analysed.
+    const { mainText: cleanedMain, removed: removedBoilerplate } = extractMainText(html);
+    const bodyText = cleanedMain.split(/\s+/).filter(Boolean).length > 40 ? cleanedMain : rawBodyText;
+    const words = rawBodyText.toLowerCase().match(/[a-z][a-z'-]{1,}/g) ?? [];
     const wordCount = words.length;
+    const contentWords = bodyText.toLowerCase().match(/[a-z][a-z'-]{1,}/g) ?? [];
 
     const freq = new Map<string, number>();
-    for (const w of words) {
-      if (w.length < 4 || STOP.has(w)) continue;
+    for (const w of contentWords) {
+      if (w.length < 4 || STOP.has(w) || isBoilerplateTerm(w)) continue;
       freq.set(w, (freq.get(w) ?? 0) + 1);
     }
-    for (let i = 0; i < words.length - 1; i++) {
-      const a = words[i] ?? "";
-      const b = words[i + 1] ?? "";
+    for (let i = 0; i < contentWords.length - 1; i++) {
+      const a = contentWords[i] ?? "";
+      const b = contentWords[i + 1] ?? "";
       if (a.length < 4 || b.length < 4 || STOP.has(a) || STOP.has(b)) continue;
       const p = `${a} ${b}`;
+      if (isBoilerplateTerm(a) || isBoilerplateTerm(b) || isBoilerplateTerm(p)) continue;
       freq.set(p, (freq.get(p) ?? 0) + 1);
     }
     const keywords = [...freq.entries()]
@@ -276,6 +281,7 @@ export const auditSite = createServerFn({ method: "POST" })
         inTitle: Boolean(titleText && titleText.toLowerCase().includes(term)),
         inH1: h1.some((h) => h.toLowerCase().includes(term)),
       }));
+
 
     const htmlBytes = new TextEncoder().encode(html).length;
     const compressed = /gzip|br|deflate|zstd/i.test(res.headers.get("content-encoding") ?? "");
