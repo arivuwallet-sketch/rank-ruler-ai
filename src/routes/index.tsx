@@ -400,6 +400,68 @@ function Report({ result }: { result: AuditResult }) {
           </div>
         </div>
 
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="text-xl font-bold">Page context</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            What the agent understood before writing anything — menus, buttons, carts and prices
+            were stripped out first.
+          </p>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-secondary/60 p-4">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                What this page offers
+              </span>
+              <p className="mt-1 text-sm font-medium">{result.pageContext.business}</p>
+            </div>
+            <div className="rounded-xl bg-secondary/60 p-4">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                Search intent
+              </span>
+              <p className="mt-1 text-sm font-medium">{result.pageContext.intent}</p>
+            </div>
+            <div className="rounded-xl bg-secondary/60 p-4">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                Primary topic
+              </span>
+              <p className="mt-1 text-sm font-medium text-mint">
+                {result.pageContext.primaryKeyword}
+                {result.pageContext.secondaryKeyword
+                  ? ` · ${result.pageContext.secondaryKeyword}`
+                  : ""}
+              </p>
+            </div>
+          </div>
+          {(result.pageContext.evidence.length > 0 || result.pageContext.removed.length > 0) && (
+            <div className="mt-4 grid gap-4 md:grid-cols-2 text-sm">
+              {result.pageContext.evidence.length > 0 && (
+                <div>
+                  <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                    Based on
+                  </span>
+                  <ul className="mt-1 space-y-1 text-muted-foreground">
+                    {result.pageContext.evidence.map((e) => (
+                      <li key={e}>· {e}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {result.pageContext.removed.length > 0 && (
+                <div>
+                  <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                    Ignored as boilerplate
+                  </span>
+                  <ul className="mt-1 space-y-1 text-muted-foreground">
+                    {result.pageContext.removed.map((r) => (
+                      <li key={r}>· {r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border border-border bg-card p-6">
             <h3 className="text-xl font-bold">Optimized metadata</h3>

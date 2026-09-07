@@ -2,9 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { buildGenerative, type GenerativeOutput } from "./generative";
 import { buildLevel3, type Level3Output } from "./level3";
+import { detectPageType } from "./generative";
+import { extractMainText, isBoilerplateTerm, synthesizeContext, type PageContext } from "./semantic";
 
 export type { GenerativeOutput } from "./generative";
 export type { Level3Output } from "./level3";
+export type { PageContext } from "./semantic";
 
 
 export type Severity = "critical" | "warning" | "notice" | "passed";
@@ -64,6 +67,7 @@ export type AuditResult = {
   rewrites: { title: string; description: string; h1: string; slugTip: string };
   projections: { metric: string; now: string; after: string; note: string }[];
   backlinks: { action: string; detail: string }[];
+  pageContext: PageContext;
   generative: GenerativeOutput;
   level3: Level3Output;
 };
@@ -244,25 +248,30 @@ export const auditSite = createServerFn({ method: "POST" })
     const ogTags = (html.match(/<meta\b[^>]*property=["']og:/gi) ?? []).length;
     const twitterTags = (html.match(/<meta\b[^>]*name=["']twitter:/gi) ?? []).length;
 
-    const bodyText = decode(
+    const rawBodyText = decode(
       (html.split(/<body[^>]*>/i)[1] ?? html)
         .replace(/<(script|style|noscript|svg)[\s\S]*?<\/\1>/gi, " ")
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " "),
     );
-    const words = bodyText.toLowerCase().match(/[a-z][a-z'-]{1,}/g) ?? [];
+    // Step 1 — strip UI boilerplate before anything is analysed.
+    const { mainText: cleanedMain, removed: removedBoilerplate } = extractMainText(html);
+    const bodyText = cleanedMain.split(/\s+/).filter(Boolean).length > 40 ? cleanedMain : rawBodyText;
+    const words = rawBodyText.toLowerCase().match(/[a-z][a-z'-]{1,}/g) ?? [];
     const wordCount = words.length;
+    const contentWords = bodyText.toLowerCase().match(/[a-z][a-z'-]{1,}/g) ?? [];
 
     const freq = new Map<string, number>();
-    for (const w of words) {
-      if (w.length < 4 || STOP.has(w)) continue;
+    for (const w of contentWords) {
+      if (w.length < 4 || STOP.has(w) || isBoilerplateTerm(w)) continue;
       freq.set(w, (freq.get(w) ?? 0) + 1);
     }
-    for (let i = 0; i < words.length - 1; i++) {
-      const a = words[i] ?? "";
-      const b = words[i + 1] ?? "";
+    for (let i = 0; i < contentWords.length - 1; i++) {
+      const a = contentWords[i] ?? "";
+      const b = contentWords[i + 1] ?? "";
       if (a.length < 4 || b.length < 4 || STOP.has(a) || STOP.has(b)) continue;
       const p = `${a} ${b}`;
+      if (isBoilerplateTerm(a) || isBoilerplateTerm(b) || isBoilerplateTerm(p)) continue;
       freq.set(p, (freq.get(p) ?? 0) + 1);
     }
     const keywords = [...freq.entries()]
@@ -277,6 +286,7 @@ export const auditSite = createServerFn({ method: "POST" })
         inH1: h1.some((h) => h.toLowerCase().includes(term)),
       }));
 
+
     const htmlBytes = new TextEncoder().encode(html).length;
     const compressed = /gzip|br|deflate|zstd/i.test(res.headers.get("content-encoding") ?? "");
     const cacheControl = res.headers.get("cache-control");
@@ -287,9 +297,23 @@ export const auditSite = createServerFn({ method: "POST" })
     const add = (i: Issue) => issues.push(i);
     const titleLength = titleText?.length ?? 0;
     const descriptionLength = description?.length ?? 0;
-    const primary = keywords[0]?.term ?? new URL(finalUrl).hostname.split(".")[0] ?? "your topic";
     const brand = new URL(finalUrl).hostname.replace(/^www\./, "").split(".")[0] ?? "Your site";
     const brandName = titleCaseKeyword(brand);
+    // Step 2 — synthesis: what this page really is, before any generation.
+    const pageContext = synthesizeContext({
+      finalUrl,
+      brandName,
+      title: titleText,
+      h1,
+      headings,
+      keywords,
+      mainText: bodyText,
+      removed: removedBoilerplate,
+      pageType: detectPageType(finalUrl, headings),
+    });
+    const primary = pageContext.primaryKeyword;
+    const secondary = pageContext.secondaryKeyword;
+
 
     // On-page
     if (!titleText)
@@ -969,7 +993,7 @@ export const auditSite = createServerFn({ method: "POST" })
     const rewrites = {
       title: `${kw} — ${brandName}`.slice(0, 60),
       description:
-        `${kw} done right: ${brandName} helps you ${keywords[1]?.term ?? "get results"} faster. See how it works and get started today.`.slice(
+        `${kw} done right: ${brandName} helps you ${secondary || "get results"} faster. See how it works and get started today.`.slice(
           0,
           158,
         ),
@@ -1034,7 +1058,7 @@ export const auditSite = createServerFn({ method: "POST" })
       finalUrl,
       brandName,
       primary,
-      secondary: keywords[1]?.term ?? "",
+      secondary,
       title: titleText,
       description,
       headings,
@@ -1047,7 +1071,7 @@ export const auditSite = createServerFn({ method: "POST" })
       finalUrl,
       brandName,
       primary,
-      secondary: keywords[1]?.term ?? "",
+      secondary,
       bodyText,
       generative,
     });
@@ -1093,6 +1117,7 @@ export const auditSite = createServerFn({ method: "POST" })
         twitterTags,
       },
       keywords,
+      pageContext,
       rewrites,
       projections,
       backlinks,
