@@ -993,7 +993,7 @@ export const auditSite = createServerFn({ method: "POST" })
     const rewrites = {
       title: `${kw} — ${brandName}`.slice(0, 60),
       description:
-        `${kw} done right: ${brandName} helps you ${keywords[1]?.term ?? "get results"} faster. See how it works and get started today.`.slice(
+        `${kw} done right: ${brandName} helps you ${secondary || "get results"} faster. See how it works and get started today.`.slice(
           0,
           158,
         ),

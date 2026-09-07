@@ -38,6 +38,8 @@ export type GenerativeOutput = {
   json_ld_schema: JsonValue;
 };
 
+import { isBoilerplateHeading, isBoilerplateTerm } from "./semantic";
+
 const QUESTION_WORDS = /^(what|how|why|when|where|who|which|can|do|does|is|are|should)\b/i;
 
 export function detectPageType(url: string, headings: { level: number; text: string }[]): PageType {
@@ -125,7 +127,10 @@ export function buildGenerative(input: {
   description = description.slice(0, 155);
 
   // ---- AEO ----
-  const sectionHeadings = headings.filter((h) => h.level === 2 || h.level === 3).slice(0, 6);
+  // Step 3 guardrail: never build questions from UI chrome headings.
+  const sectionHeadings = headings
+    .filter((h) => (h.level === 2 || h.level === 3) && !isBoilerplateHeading(h.text) && h.text.split(/\s+/).length >= 2)
+    .slice(0, 6);
   const questions = (
     sectionHeadings.length
       ? sectionHeadings.map((h) => toQuestion(h.text, primary))
@@ -134,7 +139,9 @@ export function buildGenerative(input: {
           `How does ${primary} work?`,
           `Why is ${primary} important for ${secondary || "growth"}?`,
         ]
-  ).filter((q, i, a) => a.indexOf(q) === i);
+  )
+    .filter((q) => !isBoilerplateHeading(q.replace(/[?]$/, "")) && !isBoilerplateTerm(q.replace(/[?]$/, "")))
+    .filter((q, i, a) => a.indexOf(q) === i);
 
   const faqs = questions.slice(0, 4).map((q, i) => ({
     question: q,
@@ -152,7 +159,7 @@ export function buildGenerative(input: {
     .slice(0, 6);
 
   // ---- GEO ----
-  const numbers = [...bodyText.matchAll(/(\d[\d,.]*\s?(%|percent|x|k|m|bn|billion|million|users|customers|hours|days|minutes|seconds|ms))/gi)]
+  const numbers = [...bodyText.replace(/[$€£¥₹]\s?\d[\d,.]*/g, " ").matchAll(/(\d[\d,.]*\s?(%|percent|x|k|m|bn|billion|million|users|customers|hours|days|minutes|seconds|ms))/gi)]
     .map((m) => m[0].trim())
     .filter((v, i, a) => a.indexOf(v) === i)
     .slice(0, 6);
