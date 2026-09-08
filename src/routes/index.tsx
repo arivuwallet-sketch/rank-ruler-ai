@@ -631,6 +631,20 @@ function Report({
 
             <CommandCenter l3={result.level3} g={result.generative} />
 
+            <GrowthEngines
+              finalUrl={result.finalUrl}
+              brandName={brandName}
+              location={location}
+              business={result.pageContext.business}
+              primary={result.pageContext.primaryKeyword}
+              secondary={result.pageContext.secondaryKeyword ?? ""}
+              keywords={
+                result.generated
+                  ? Object.values(result.generated.keywordMatrix).flat()
+                  : [result.pageContext.primaryKeyword]
+              }
+            />
+
             <AnalyticsStudio
               finalUrl={result.finalUrl}
               primary={result.pageContext.primaryKeyword}
