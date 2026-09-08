@@ -47,6 +47,10 @@ const BANNED_LINE = [
 
 const BAD_ENTITY = /price|cart|home|menu|login|search|checkout/i;
 
+/** Collection/promo strings that are never the real subject of a page. */
+const GENERIC_ENTITY =
+  /^(browse|shop|explore|discover|featured|new arrivals?|our (products|collection|story)|best ?sellers?|collections?|products?|welcome|catalog)\b|latest products/i;
+
 export const BANNED_OUTPUT =
   /add to cart|view cart|check ?out|sign ?up|log ?in|regular price|sale price|sold out|answers ".*" directly/i;
 
@@ -158,7 +162,14 @@ export function extractPageContent(html: string, url: string, brandFallback: str
   ]
     .map((s) => (s ?? "").trim())
     .filter((s) => s.length > 2 && s.length < 110 && keepLine(s) && !BAD_ENTITY.test(s));
-  const primaryEntity = entityCandidates[0] ?? headingTexts[0] ?? title ?? "";
+  const specific = entityCandidates.filter((s) => !GENERIC_ENTITY.test(s));
+  const primaryEntity =
+    specific[0] ??
+    uniqueSpecs[0]?.label ??
+    entityCandidates[0] ??
+    headingTexts[0] ??
+    title ??
+    "";
 
   const entityDescription = paragraphs.slice(0, 12).join(" ").slice(0, 4000);
   const wordCountAfterCleaning = `${headingTexts.join(" ")} ${entityDescription}`
