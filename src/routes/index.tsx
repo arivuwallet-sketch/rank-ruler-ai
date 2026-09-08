@@ -585,9 +585,13 @@ function Report({ result }: { result: AuditResult }) {
           </div>
         </div>
 
-        <GenerativeStudio g={result.generative} />
+        {!result.contentError && (
+          <>
+            <GenerativeStudio g={result.generative} />
 
-        <CommandCenter l3={result.level3} g={result.generative} />
+            <CommandCenter l3={result.level3} g={result.generative} />
+          </>
+        )}
 
 
 
