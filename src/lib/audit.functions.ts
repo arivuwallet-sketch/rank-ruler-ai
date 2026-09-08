@@ -1135,6 +1135,12 @@ export const auditSite = createServerFn({ method: "POST" })
         generative.json_ld_schema = g.jsonLd as typeof generative.json_ld_schema;
       }
       if (g.llmsTxt) level3.llms_txt = g.llmsTxt;
+      const capsuleSsml = g.directAnswerCapsule.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      level3.ssml = `<speak>\n  <break time="300ms"/>\n  ${capsuleSsml.replace(
+        new RegExp(cleanedPage.brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+        `<emphasis level="strong">${cleanedPage.brand}</emphasis>`,
+      )}\n  <break time="500ms"/>\n  Learn more at <say-as interpret-as="verbatim">${new URL(finalUrl).hostname.replace(/^www\./, "")}</say-as>.\n</speak>`;
+      if (g.agentRouting) level3.directives = g.agentRouting;
       level3.mvt_variants = level3.mvt_variants.map((v, i) =>
         i === 0 ? { ...v, title: g.titleTag, description: g.metaDescription } : v,
       );
