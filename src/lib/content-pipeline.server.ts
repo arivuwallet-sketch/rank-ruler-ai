@@ -23,10 +23,13 @@ Hard rules, always:
 - titleTag must be 50-60 characters. metaDescription must be 140-155 characters. Count exactly; revise until you hit the range.
 - directAnswerCapsule must be 40-60 words of original prose.
 - llmsTxt is dense markdown with a "# Brand", "> summary", "## Core facts" (only real facts from the input), "## Frequently asked" table.
+- keywordMatrix: real search phrases for THIS entity. shortTail = 4-6 broad 1-2 word head terms. longTail = 6-8 specific 3+ word phrases. informational = 5-6 question/learning queries. transactional = 5-6 buying-intent terms ("buy X", "best price X", "X online store"). local = 4-6 geo terms using the provided targetLocation when present, otherwise the brand's country/city if the page states one; return [] if no location is known. All lowercase, no duplicates, no navigation words.
+- tags: 10-15 comma-worthy meta/product tags (short noun phrases).
+- altTags: 4-6 descriptive image ALT texts for the page's main visuals, each under 100 chars.
 - jsonLd is a schema.org @graph object with Organization, BreadcrumbList, the page type, and FAQPage built from your faq array.
 
 Return ONLY this JSON shape, no markdown fences, no preamble:
-{"titleTag": "", "metaDescription": "", "h1": "", "urlSlug": "", "directAnswerCapsule": "", "faq": [{"question": "", "answer": ""}], "geoStats": [""], "llmsTxt": "", "agentRouting": "", "jsonLd": {}}`;
+{"titleTag": "", "metaDescription": "", "h1": "", "urlSlug": "", "directAnswerCapsule": "", "faq": [{"question": "", "answer": ""}], "geoStats": [""], "keywordMatrix": {"shortTail": [], "longTail": [], "informational": [], "transactional": [], "local": []}, "tags": [], "altTags": [], "llmsTxt": "", "agentRouting": "", "jsonLd": {}}`;
 
 async function getAutocomplete(q: string): Promise<string[]> {
   try {
@@ -82,6 +85,11 @@ async function callModel(messages: { role: "system" | "user"; content: string }[
   return data.choices?.[0]?.message?.content ?? "";
 }
 
+function strList(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return [...new Set(v.map((x) => String(x).trim()).filter(Boolean))];
+}
+
 function parseLayers(raw: string, page: CleanedPage, url: string): GeneratedLayers {
   const cleaned = raw.replace(/```json|```/g, "").trim();
   const start = cleaned.indexOf("{");
@@ -97,6 +105,15 @@ function parseLayers(raw: string, page: CleanedPage, url: string): GeneratedLaye
       answer: String(f?.answer ?? ""),
     })),
     geoStats: (Array.isArray(parsed.geoStats) ? parsed.geoStats : []).map((s) => String(s)),
+    keywordMatrix: {
+      shortTail: strList(parsed.keywordMatrix?.shortTail),
+      longTail: strList(parsed.keywordMatrix?.longTail),
+      informational: strList(parsed.keywordMatrix?.informational),
+      transactional: strList(parsed.keywordMatrix?.transactional),
+      local: strList(parsed.keywordMatrix?.local),
+    },
+    tags: strList(parsed.tags).slice(0, 15),
+    altTags: strList(parsed.altTags).slice(0, 6),
     llmsTxt: String(parsed.llmsTxt ?? ""),
     agentRouting:
       typeof parsed.agentRouting === "string" && parsed.agentRouting.trim()
@@ -111,8 +128,9 @@ export async function generateContentLayers(
   page: CleanedPage,
   querySignals?: QuerySignals,
   pageUrl?: string,
+  targetLocation?: string,
 ): Promise<GeneratedLayers> {
-  const payload = JSON.stringify({ page, querySignals, pageUrl });
+  const payload = JSON.stringify({ page, querySignals, pageUrl, targetLocation: targetLocation ?? null });
   const messages: { role: "system" | "user"; content: string }[] = [
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: payload },
