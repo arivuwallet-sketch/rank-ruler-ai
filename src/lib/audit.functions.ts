@@ -4,10 +4,12 @@ import { buildGenerative, type GenerativeOutput } from "./generative";
 import { buildLevel3, type Level3Output } from "./level3";
 import { detectPageType } from "./generative";
 import { extractMainText, isBoilerplateTerm, synthesizeContext, type PageContext } from "./semantic";
+import type { CleanedPage, GeneratedLayers, QuerySignals } from "./cleaned-page";
 
 export type { GenerativeOutput } from "./generative";
 export type { Level3Output } from "./level3";
 export type { PageContext } from "./semantic";
+export type { CleanedPage, GeneratedLayers, QuerySignals } from "./cleaned-page";
 
 
 export type Severity = "critical" | "warning" | "notice" | "passed";
@@ -70,7 +72,12 @@ export type AuditResult = {
   pageContext: PageContext;
   generative: GenerativeOutput;
   level3: Level3Output;
+  cleanedPage: CleanedPage;
+  generated: GeneratedLayers | null;
+  querySignals: QuerySignals;
+  contentError: string | null;
 };
+
 
 
 const CATEGORY_LABELS: Record<CategoryId, string> = {
