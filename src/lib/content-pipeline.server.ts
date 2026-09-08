@@ -26,7 +26,7 @@ Hard rules, always:
 - jsonLd is a schema.org @graph object with Organization, BreadcrumbList, the page type, and FAQPage built from your faq array.
 
 Return ONLY this JSON shape, no markdown fences, no preamble:
-{"titleTag": "", "metaDescription": "", "h1": "", "urlSlug": "", "directAnswerCapsule": "", "faq": [{"question": "", "answer": ""}], "geoStats": [""], "llmsTxt", "agentRouting": "", "jsonLd": {}}`;
+{"titleTag": "", "metaDescription": "", "h1": "", "urlSlug": "", "directAnswerCapsule": "", "faq": [{"question": "", "answer": ""}], "geoStats": [""], "llmsTxt": "", "agentRouting": "", "jsonLd": {}}`;
 
 async function getAutocomplete(q: string): Promise<string[]> {
   try {
@@ -82,7 +82,7 @@ async function callModel(messages: { role: "system" | "user"; content: string }[
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-function parseLayers(raw: string): GeneratedLayers {
+function parseLayers(raw: string, page: CleanedPage, url: string): GeneratedLayers {
   const cleaned = raw.replace(/```json|```/g, "").trim();
   const start = cleaned.indexOf("{");
   const parsed = JSON.parse(start > 0 ? cleaned.slice(start) : cleaned) as GeneratedLayers;
@@ -117,7 +117,7 @@ export async function generateContentLayers(
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: payload },
   ];
-  let generated = parseLayers(await callModel(messages));
+  let generated = parseLayers(await callModel(messages), page, pageUrl ?? "");
   const violation = needsRepair(generated);
   if (violation) {
     const repaired = parseLayers(
@@ -128,6 +128,8 @@ export async function generateContentLayers(
           content: `Your previous output was rejected. ${violation} Return the full JSON object again, corrected.`,
         },
       ]),
+      page,
+      pageUrl ?? "",
     );
     if (needsRepair(repaired)) {
       throw new Error(
