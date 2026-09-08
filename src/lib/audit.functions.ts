@@ -1190,5 +1190,9 @@ export const auditSite = createServerFn({ method: "POST" })
       backlinks,
       generative,
       level3,
+      cleanedPage,
+      generated,
+      querySignals,
+      contentError,
     };
   });
