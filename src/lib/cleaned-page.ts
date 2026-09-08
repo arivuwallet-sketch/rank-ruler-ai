@@ -27,6 +27,7 @@ export type GeneratedLayers = {
   faq: { question: string; answer: string }[];
   geoStats: string[];
   llmsTxt: string;
+  agentRouting: string;
   jsonLd: JsonValue;
 };
 
