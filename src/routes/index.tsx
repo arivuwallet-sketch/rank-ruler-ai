@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import AnalyticsStudio from "@/components/AnalyticsStudio";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -590,6 +591,11 @@ function Report({ result }: { result: AuditResult }) {
             <GenerativeStudio g={result.generative} />
 
             <CommandCenter l3={result.level3} g={result.generative} />
+
+            <AnalyticsStudio
+              finalUrl={result.finalUrl}
+              primary={result.pageContext.primaryKeyword}
+            />
           </>
         )}
 
