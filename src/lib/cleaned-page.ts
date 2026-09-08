@@ -1,5 +1,6 @@
 // Step 1 + Step 4 of the content pipeline: real HTML cleaning and output validation.
 // Pure functions — client/server safe.
+import type { JsonValue } from "./generative";
 
 export type CleanedPage = {
   brand: string;
@@ -26,7 +27,7 @@ export type GeneratedLayers = {
   faq: { question: string; answer: string }[];
   geoStats: string[];
   llmsTxt: string;
-  jsonLd: unknown;
+  jsonLd: JsonValue;
 };
 
 const CHROME_TAG = /<(nav|header|footer|aside|form|button|select|option|template|script|style|noscript|svg|iframe)\b[^>]*>[\s\S]*?<\/\1>/gi;

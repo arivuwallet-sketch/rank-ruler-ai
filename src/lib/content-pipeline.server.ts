@@ -98,7 +98,7 @@ function parseLayers(raw: string): GeneratedLayers {
     })),
     geoStats: (Array.isArray(parsed.geoStats) ? parsed.geoStats : []).map((s) => String(s)),
     llmsTxt: String(parsed.llmsTxt ?? ""),
-    jsonLd: parsed.jsonLd ?? {},
+    jsonLd: (parsed.jsonLd ?? {}) as GeneratedLayers["jsonLd"],
   };
 }
 
