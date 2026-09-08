@@ -26,6 +26,15 @@ export type GeneratedLayers = {
   directAnswerCapsule: string;
   faq: { question: string; answer: string }[];
   geoStats: string[];
+  keywordMatrix: {
+    shortTail: string[];
+    longTail: string[];
+    informational: string[];
+    transactional: string[];
+    local: string[];
+  };
+  tags: string[];
+  altTags: string[];
   llmsTxt: string;
   agentRouting: string;
   jsonLd: JsonValue;

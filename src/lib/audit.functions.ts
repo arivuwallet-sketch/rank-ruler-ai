@@ -137,7 +137,15 @@ async function headOk(url: string): Promise<"found" | "missing" | "error"> {
 }
 
 export const auditSite = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ url: z.string().min(3).max(300) }).parse(data))
+  .inputValidator((data) =>
+    z
+      .object({
+        url: z.string().min(3).max(300),
+        brandName: z.string().max(120).optional(),
+        location: z.string().max(120).optional(),
+      })
+      .parse(data),
+  )
   .handler(async ({ data }): Promise<AuditResult> => {
     let input = data.url.trim();
     if (!/^https?:\/\//i.test(input)) input = `https://${input}`;
@@ -1085,7 +1093,7 @@ export const auditSite = createServerFn({ method: "POST" })
 
     // ---- Content pipeline: clean → real query signals → one model call ----
     const { extractPageContent, cleanContentError } = await import("./cleaned-page");
-    const cleanedPage = extractPageContent(html, finalUrl, brandName);
+    const cleanedPage = extractPageContent(html, finalUrl, data.brandName?.trim() || brandName);
     let contentError = cleanContentError(cleanedPage);
     let generated: GeneratedLayers | null = null;
     let querySignals: QuerySignals = { autocomplete: [], gscQueries: [] };
@@ -1097,7 +1105,12 @@ export const auditSite = createServerFn({ method: "POST" })
           cleanedPage.primaryEntity || primary,
           finalUrl,
         );
-        generated = await pipeline.generateContentLayers(cleanedPage, querySignals, finalUrl);
+        generated = await pipeline.generateContentLayers(
+          cleanedPage,
+          querySignals,
+          finalUrl,
+          data.location?.trim() || undefined,
+        );
       } catch (err) {
         contentError = err instanceof Error ? err.message : "AI content generation failed.";
       }

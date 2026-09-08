@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import AnalyticsStudio from "@/components/AnalyticsStudio";
+import KeywordMatrix from "@/components/KeywordMatrix";
+import FixAllBar from "@/components/FixAllBar";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -110,9 +112,18 @@ const SEV_META: Record<Severity, { label: string; icon: typeof XCircle; cls: str
 
 function Home() {
   const [url, setUrl] = useState("");
+  const [brand, setBrand] = useState("");
+  const [place, setPlace] = useState("");
   const scan = useServerFn(auditSite);
   const mutation = useMutation<AuditResult, Error, string>({
-    mutationFn: (value) => scan({ data: { url: value } }),
+    mutationFn: (value) =>
+      scan({
+        data: {
+          url: value,
+          brandName: brand.trim() || undefined,
+          location: place.trim() || undefined,
+        },
+      }),
   });
 
   const result = mutation.data;
@@ -197,6 +208,22 @@ function Home() {
                 )}
               </button>
             </form>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <input
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                placeholder="Brand name (optional)"
+                aria-label="Brand name"
+                className="rounded-full border border-border bg-card px-5 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-mint"
+              />
+              <input
+                value={place}
+                onChange={(e) => setPlace(e.target.value)}
+                placeholder="Target location for local SEO (optional)"
+                aria-label="Target location"
+                className="rounded-full border border-border bg-card px-5 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-mint"
+              />
+            </div>
             {mutation.isError && (
               <p className="mt-3 text-sm text-rose-400">{mutation.error.message}</p>
             )}
@@ -217,7 +244,7 @@ function Home() {
         </div>
       </section>
 
-      {result && <Report result={result} />}
+      {result && <Report result={result} brandName={brand} location={place} />}
 
       <section id="capabilities" className="mx-auto max-w-6xl px-5 py-20">
         <h2 className="text-3xl font-bold md:text-4xl">What the agent handles</h2>
@@ -310,7 +337,15 @@ function ScoreRing({ score, grade }: { score: number; grade: string }) {
   );
 }
 
-function Report({ result }: { result: AuditResult }) {
+function Report({
+  result,
+  brandName,
+  location,
+}: {
+  result: AuditResult;
+  brandName: string;
+  location: string;
+}) {
   const [filter, setFilter] = useState<Severity | "all">("all");
   const counts = (["critical", "warning", "notice", "passed"] as Severity[]).map(
     (s) => [s, result.issues.filter((i) => i.severity === s).length] as const,
@@ -585,6 +620,10 @@ function Report({ result }: { result: AuditResult }) {
             </table>
           </div>
         </div>
+
+        <FixAllBar siteUrl={result.finalUrl} brandName={brandName} location={location} />
+
+        {result.generated && <KeywordMatrix g={result.generated} />}
 
         {!result.contentError && (
           <>
