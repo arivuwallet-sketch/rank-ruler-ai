@@ -2,6 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { GeneratedLayers } from "./cleaned-page";
+import type { JsonValue } from "./generative";
 
 export type SitePage = { url: string };
 
@@ -23,7 +24,7 @@ export type PageFix = {
   altTags?: string[];
   keywords?: GeneratedLayers["keywordMatrix"];
   llmsTxt?: string;
-  jsonLd?: unknown;
+  jsonLd?: JsonValue;
   synced: "written" | "not-connected" | "failed";
   syncNote?: string;
 };
