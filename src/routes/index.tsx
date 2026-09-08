@@ -244,7 +244,7 @@ function Home() {
         </div>
       </section>
 
-      {result && <Report result={result} />}
+      {result && <Report result={result} brandName={brand} location={place} />}
 
       <section id="capabilities" className="mx-auto max-w-6xl px-5 py-20">
         <h2 className="text-3xl font-bold md:text-4xl">What the agent handles</h2>
@@ -337,7 +337,15 @@ function ScoreRing({ score, grade }: { score: number; grade: string }) {
   );
 }
 
-function Report({ result }: { result: AuditResult }) {
+function Report({
+  result,
+  brandName,
+  location,
+}: {
+  result: AuditResult;
+  brandName: string;
+  location: string;
+}) {
   const [filter, setFilter] = useState<Severity | "all">("all");
   const counts = (["critical", "warning", "notice", "passed"] as Severity[]).map(
     (s) => [s, result.issues.filter((i) => i.severity === s).length] as const,
@@ -613,7 +621,7 @@ function Report({ result }: { result: AuditResult }) {
           </div>
         </div>
 
-        <FixAllBar siteUrl={result.finalUrl} brandName={brand} location={place} />
+        <FixAllBar siteUrl={result.finalUrl} brandName={brandName} location={location} />
 
         {result.generated && <KeywordMatrix g={result.generated} />}
 

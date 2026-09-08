@@ -26,7 +26,7 @@ export type PageFix = {
   llmsTxt?: string;
   jsonLd?: JsonValue;
   synced: "written" | "not-connected" | "failed";
-  syncNote?: string;
+  syncNote?: string | undefined;
 };
 
 const UA =
