@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import AnalyticsStudio from "@/components/AnalyticsStudio";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -461,6 +462,74 @@ function Report({ result }: { result: AuditResult }) {
           )}
         </div>
 
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="text-xl font-bold">Cleaned content the writer used</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Navigation, carts, buttons, logins and price tags were removed before a single word was
+            written.
+          </p>
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            {(
+              [
+                ["Brand", result.cleanedPage.brand],
+                ["Page type", result.cleanedPage.pageType],
+                ["Main subject", result.cleanedPage.primaryEntity || "—"],
+                ["Clean words", String(result.cleanedPage.wordCountAfterCleaning)],
+              ] as [string, string][]
+            ).map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-secondary/60 p-4">
+                <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                  {label}
+                </span>
+                <p className="mt-1 text-sm font-medium">{value}</p>
+              </div>
+            ))}
+          </div>
+          {result.cleanedPage.specs.length > 0 && (
+            <div className="mt-4">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                Details found
+              </span>
+              <ul className="mt-1 grid gap-1 text-sm text-muted-foreground md:grid-cols-2">
+                {result.cleanedPage.specs.map((s) => (
+                  <li key={s.label}>
+                    · <span className="text-foreground">{s.label}:</span> {s.value}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="mt-4 text-sm text-muted-foreground">
+            {result.querySignals.autocomplete.length > 0 ? (
+              <>
+                <span className="text-xs tracking-wide uppercase">Real searches used</span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {result.querySignals.autocomplete.slice(0, 12).map((q) => (
+                    <span key={q} className="rounded-full bg-secondary/60 px-3 py-1 text-xs">
+                      {q}
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p>
+                No live search suggestions were available for this page, so questions were built
+                from the page's own details.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {result.contentError && (
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-6">
+            <h3 className="text-lg font-bold">{result.contentError}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Nothing was written for this page. Point the scan at a page with real descriptive
+              copy — a product, service or article page — and run it again.
+            </p>
+          </div>
+        )}
+
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border border-border bg-card p-6">
@@ -517,9 +586,18 @@ function Report({ result }: { result: AuditResult }) {
           </div>
         </div>
 
-        <GenerativeStudio g={result.generative} />
+        {!result.contentError && (
+          <>
+            <GenerativeStudio g={result.generative} />
 
-        <CommandCenter l3={result.level3} g={result.generative} />
+            <CommandCenter l3={result.level3} g={result.generative} />
+
+            <AnalyticsStudio
+              finalUrl={result.finalUrl}
+              primary={result.pageContext.primaryKeyword}
+            />
+          </>
+        )}
 
 
 

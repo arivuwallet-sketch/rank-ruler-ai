@@ -4,10 +4,12 @@ import { buildGenerative, type GenerativeOutput } from "./generative";
 import { buildLevel3, type Level3Output } from "./level3";
 import { detectPageType } from "./generative";
 import { extractMainText, isBoilerplateTerm, synthesizeContext, type PageContext } from "./semantic";
+import type { CleanedPage, GeneratedLayers, QuerySignals } from "./cleaned-page";
 
 export type { GenerativeOutput } from "./generative";
 export type { Level3Output } from "./level3";
 export type { PageContext } from "./semantic";
+export type { CleanedPage, GeneratedLayers, QuerySignals } from "./cleaned-page";
 
 
 export type Severity = "critical" | "warning" | "notice" | "passed";
@@ -70,7 +72,12 @@ export type AuditResult = {
   pageContext: PageContext;
   generative: GenerativeOutput;
   level3: Level3Output;
+  cleanedPage: CleanedPage;
+  generated: GeneratedLayers | null;
+  querySignals: QuerySignals;
+  contentError: string | null;
 };
+
 
 
 const CATEGORY_LABELS: Record<CategoryId, string> = {
@@ -1076,7 +1083,73 @@ export const auditSite = createServerFn({ method: "POST" })
       generative,
     });
 
+    // ---- Content pipeline: clean → real query signals → one model call ----
+    const { extractPageContent, cleanContentError } = await import("./cleaned-page");
+    const cleanedPage = extractPageContent(html, finalUrl, brandName);
+    let contentError = cleanContentError(cleanedPage);
+    let generated: GeneratedLayers | null = null;
+    let querySignals: QuerySignals = { autocomplete: [], gscQueries: [] };
+
+    if (!contentError) {
+      try {
+        const pipeline = await import("./content-pipeline.server");
+        querySignals = await pipeline.getQuerySignals(
+          cleanedPage.primaryEntity || primary,
+          finalUrl,
+        );
+        generated = await pipeline.generateContentLayers(cleanedPage, querySignals, finalUrl);
+      } catch (err) {
+        contentError = err instanceof Error ? err.message : "AI content generation failed.";
+      }
+    }
+
+    // Every content panel reads from the generated object — never raw scraped text.
+    if (generated) {
+      const g = generated;
+      rewrites.title = g.titleTag;
+      rewrites.description = g.metaDescription;
+      if (g.h1) rewrites.h1 = g.h1;
+      if (g.urlSlug) rewrites.slugTip = `/${g.urlSlug.replace(/^\/+/, "")}`;
+
+      generative.seo_metadata = {
+        title: g.titleTag,
+        title_char_count: g.titleTag.length,
+        description: g.metaDescription,
+        description_char_count: g.metaDescription.length,
+      };
+      generative.context.brandName = cleanedPage.brand;
+      generative.context.entity = `${cleanedPage.brand} — ${cleanedPage.primaryEntity}`;
+      generative.context.questions = g.faq.map((f) => f.question);
+      generative.aeo_content.primary_question_heading = g.faq[0]?.question ?? generative.aeo_content.primary_question_heading;
+      generative.aeo_content.direct_answer_capsule = g.directAnswerCapsule;
+      generative.aeo_content.answer_word_count = g.directAnswerCapsule.split(/\s+/).filter(Boolean).length;
+      generative.aeo_content.faqs = g.faq;
+      generative.aeo_content.heading_rewrites = g.faq.slice(0, 6).map((f, i) => ({
+        from: headings.filter((h) => h.level === 2 || h.level === 3)[i]?.text ?? cleanedPage.primaryEntity,
+        to: f.question,
+      }));
+      generative.geo_signals.data_points_included = g.geoStats.length
+        ? g.geoStats
+        : generative.geo_signals.data_points_included;
+      if (g.jsonLd && typeof g.jsonLd === "object") {
+        generative.json_ld_schema = g.jsonLd as typeof generative.json_ld_schema;
+      }
+      if (g.llmsTxt) level3.llms_txt = g.llmsTxt;
+      const capsuleSsml = g.directAnswerCapsule.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      level3.ssml = `<speak>\n  <break time="300ms"/>\n  ${capsuleSsml.replace(
+        new RegExp(cleanedPage.brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+        `<emphasis level="strong">${cleanedPage.brand}</emphasis>`,
+      )}\n  <break time="500ms"/>\n  Learn more at <say-as interpret-as="verbatim">${new URL(finalUrl).hostname.replace(/^www\./, "")}</say-as>.\n</speak>`;
+      if (g.agentRouting) level3.directives = g.agentRouting;
+      level3.mvt_variants = level3.mvt_variants.map((v, i) =>
+        i === 0 ? { ...v, title: g.titleTag, description: g.metaDescription } : v,
+      );
+      level3.knowledge_graph.entity = cleanedPage.brand;
+    }
+
     return {
+
+
 
       url: input,
       finalUrl,
@@ -1123,5 +1196,9 @@ export const auditSite = createServerFn({ method: "POST" })
       backlinks,
       generative,
       level3,
+      cleanedPage,
+      generated,
+      querySignals,
+      contentError,
     };
   });
