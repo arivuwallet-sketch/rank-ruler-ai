@@ -10,7 +10,7 @@ import {
   ShoppingCart,
   Users,
 } from "lucide-react";
-import { buildAnalytics, comparePrevious, toCsv, type AnalyticsData, type RangeKey, type Row } from "@/lib/analytics";
+import { buildAnalytics, comparePrevious, daysBetween, toCsv, type AnalyticsData, type RangeKey, type Row } from "@/lib/analytics";
 
 const RANGES: { key: RangeKey; label: string }[] = [
   { key: "live", label: "Live" },
@@ -19,7 +19,12 @@ const RANGES: { key: RangeKey; label: string }[] = [
   { key: "30d", label: "30D" },
   { key: "90d", label: "90D" },
   { key: "ytd", label: "YTD" },
+  { key: "custom", label: "Custom" },
 ];
+
+function isoDaysAgo(n: number): string {
+  return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+}
 
 function Card({ title, icon, children, className = "" }: { title?: string; icon?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
