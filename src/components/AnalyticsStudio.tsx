@@ -10,7 +10,7 @@ import {
   ShoppingCart,
   Users,
 } from "lucide-react";
-import { buildAnalytics, comparePrevious, toCsv, type AnalyticsData, type RangeKey, type Row } from "@/lib/analytics";
+import { buildAnalytics, comparePrevious, daysBetween, toCsv, type AnalyticsData, type RangeKey, type Row } from "@/lib/analytics";
 
 const RANGES: { key: RangeKey; label: string }[] = [
   { key: "live", label: "Live" },
@@ -19,7 +19,12 @@ const RANGES: { key: RangeKey; label: string }[] = [
   { key: "30d", label: "30D" },
   { key: "90d", label: "90D" },
   { key: "ytd", label: "YTD" },
+  { key: "custom", label: "Custom" },
 ];
+
+function isoDaysAgo(n: number): string {
+  return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+}
 
 function Card({ title, icon, children, className = "" }: { title?: string; icon?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
@@ -295,13 +300,19 @@ export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: strin
   const [range, setRange] = useState<RangeKey>("7d");
   const [compareOn, setCompareOn] = useState(false);
   const [tick, setTick] = useState(0);
+  const [from, setFrom] = useState(() => isoDaysAgo(14));
+  const [to, setTo] = useState(() => isoDaysAgo(0));
+  const customDays = daysBetween(from, to);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 3000);
     return () => clearInterval(id);
   }, []);
 
-  const data = useMemo(() => buildAnalytics(finalUrl, range, primary, tick), [finalUrl, range, primary, tick]);
+  const data = useMemo(
+    () => buildAnalytics(finalUrl, range, primary, tick, customDays),
+    [finalUrl, range, primary, tick, customDays],
+  );
   const prev = useMemo(() => (compareOn ? comparePrevious(data) : null), [compareOn, data]);
   const feed = data.live.feed.slice(tick % data.live.feed.length).concat(data.live.feed.slice(0, tick % data.live.feed.length));
 
@@ -326,6 +337,28 @@ export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: strin
               </button>
             ))}
           </div>
+          {range === "custom" ? (
+            <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs">
+              <input
+                type="date"
+                value={from}
+                max={to}
+                onChange={(e) => setFrom(e.target.value)}
+                aria-label="Start date"
+                className="bg-transparent text-foreground outline-none"
+              />
+              <span className="text-muted-foreground">→</span>
+              <input
+                type="date"
+                value={to}
+                min={from}
+                onChange={(e) => setTo(e.target.value)}
+                aria-label="End date"
+                className="bg-transparent text-foreground outline-none"
+              />
+              <span className="text-muted-foreground">{customDays}d</span>
+            </div>
+          ) : null}
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs">
             <input type="checkbox" checked={compareOn} onChange={(e) => setCompareOn(e.target.checked)} className="accent-[var(--mint)]" />
             Compare to previous period
