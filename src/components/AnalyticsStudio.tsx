@@ -300,13 +300,19 @@ export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: strin
   const [range, setRange] = useState<RangeKey>("7d");
   const [compareOn, setCompareOn] = useState(false);
   const [tick, setTick] = useState(0);
+  const [from, setFrom] = useState(() => isoDaysAgo(14));
+  const [to, setTo] = useState(() => isoDaysAgo(0));
+  const customDays = daysBetween(from, to);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 3000);
     return () => clearInterval(id);
   }, []);
 
-  const data = useMemo(() => buildAnalytics(finalUrl, range, primary, tick), [finalUrl, range, primary, tick]);
+  const data = useMemo(
+    () => buildAnalytics(finalUrl, range, primary, tick, customDays),
+    [finalUrl, range, primary, tick, customDays],
+  );
   const prev = useMemo(() => (compareOn ? comparePrevious(data) : null), [compareOn, data]);
   const feed = data.live.feed.slice(tick % data.live.feed.length).concat(data.live.feed.slice(0, tick % data.live.feed.length));
 
