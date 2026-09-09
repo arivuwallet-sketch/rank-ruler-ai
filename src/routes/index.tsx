@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import AnalyticsStudio from "@/components/AnalyticsStudio";
 import KeywordMatrix from "@/components/KeywordMatrix";
 import FixAllBar from "@/components/FixAllBar";
+import GrowthEngines from "@/components/GrowthEngines";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
