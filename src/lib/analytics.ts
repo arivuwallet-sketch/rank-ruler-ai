@@ -2,7 +2,7 @@
 // Client/server safe: pure functions, no side effects. Values are derived from the
 // scanned host so a given site always renders the same dataset.
 
-export type RangeKey = "live" | "today" | "7d" | "30d" | "90d" | "ytd";
+export type RangeKey = "live" | "today" | "7d" | "30d" | "90d" | "ytd" | "custom";
 
 export type Point = { label: string; users: number; clicks: number; revenue: number };
 export type Row = Record<string, string | number>;
@@ -48,7 +48,14 @@ function seeded(seed: string) {
   };
 }
 
-const RANGE_DAYS: Record<RangeKey, number> = { live: 1, today: 1, "7d": 7, "30d": 30, "90d": 90, ytd: 180 };
+const RANGE_DAYS: Record<RangeKey, number> = { live: 1, today: 1, "7d": 7, "30d": 30, "90d": 90, ytd: 180, custom: 14 };
+
+export function daysBetween(from: string, to: string): number {
+  const a = new Date(from).getTime();
+  const b = new Date(to).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b)) return 14;
+  return Math.min(365, Math.max(1, Math.round(Math.abs(b - a) / 86400000) + 1));
+}
 
 function share(values: number[]): number[] {
   const total = values.reduce((a, b) => a + b, 0) || 1;
