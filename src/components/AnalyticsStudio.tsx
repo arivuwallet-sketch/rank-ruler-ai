@@ -337,6 +337,28 @@ export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: strin
               </button>
             ))}
           </div>
+          {range === "custom" ? (
+            <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs">
+              <input
+                type="date"
+                value={from}
+                max={to}
+                onChange={(e) => setFrom(e.target.value)}
+                aria-label="Start date"
+                className="bg-transparent text-foreground outline-none"
+              />
+              <span className="text-muted-foreground">→</span>
+              <input
+                type="date"
+                value={to}
+                min={from}
+                onChange={(e) => setTo(e.target.value)}
+                aria-label="End date"
+                className="bg-transparent text-foreground outline-none"
+              />
+              <span className="text-muted-foreground">{customDays}d</span>
+            </div>
+          ) : null}
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs">
             <input type="checkbox" checked={compareOn} onChange={(e) => setCompareOn(e.target.checked)} className="accent-[var(--mint)]" />
             Compare to previous period
