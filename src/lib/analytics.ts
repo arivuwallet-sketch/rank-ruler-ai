@@ -62,11 +62,11 @@ function share(values: number[]): number[] {
   return values.map((v) => Math.round((v / total) * 1000) / 10);
 }
 
-export function buildAnalytics(finalUrl: string, range: RangeKey, primary: string, tick = 0): AnalyticsData {
+export function buildAnalytics(finalUrl: string, range: RangeKey, primary: string, tick = 0, customDays?: number): AnalyticsData {
   const url = new URL(finalUrl);
   const host = url.hostname.replace(/^www\./, "");
-  const rnd = seeded(host + range);
-  const days = RANGE_DAYS[range];
+  const days = range === "custom" && customDays ? customDays : RANGE_DAYS[range];
+  const rnd = seeded(host + range + days);
   const scale = days === 1 ? 1 : days;
   const base = 240 + Math.round(rnd() * 900);
 
