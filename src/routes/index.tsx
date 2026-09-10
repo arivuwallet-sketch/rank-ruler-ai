@@ -161,8 +161,8 @@ function Home() {
 
       <section id="top" className="relative overflow-hidden bg-hero">
         <div className="pointer-events-none absolute inset-0 grid-lines opacity-25" />
-        <ImmersiveBackdrop className="opacity-70 lg:left-1/3" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_20%_40%,var(--background)_35%,transparent_75%)]" />
+        <ImmersiveBackdrop className="opacity-100 lg:left-1/4" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_15%_45%,var(--background)_30%,transparent_70%)]" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 md:py-24 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground">

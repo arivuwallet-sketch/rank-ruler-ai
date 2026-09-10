@@ -63,20 +63,20 @@ function Globe() {
       <mesh>
         <icosahedronGeometry args={[2.05, 3]} />
         <meshStandardMaterial
-          color="#0d2a35"
-          roughness={0.35}
-          metalness={0.6}
+          color="#123f4d"
+          roughness={0.3}
+          metalness={0.5}
           transparent
-          opacity={0.55}
+          opacity={0.7}
         />
       </mesh>
       <mesh>
         <icosahedronGeometry args={[2.08, 2]} />
-        <meshBasicMaterial color={MINT} wireframe transparent opacity={0.18} />
+        <meshBasicMaterial color={MINT} wireframe transparent opacity={0.4} />
       </mesh>
 
       <points geometry={nodeGeometry}>
-        <pointsMaterial color={MINT} size={0.045} sizeAttenuation transparent opacity={0.95} />
+        <pointsMaterial color={MINT} size={0.075} sizeAttenuation transparent opacity={1} />
       </points>
 
       {arcs.map((pts, i) => {
@@ -90,7 +90,7 @@ function Globe() {
                 new THREE.LineBasicMaterial({
                   color: i % 3 === 0 ? VIOLET : i % 3 === 1 ? SKY : MINT,
                   transparent: true,
-                  opacity: 0.5,
+                  opacity: 0.75,
                 }),
               )
             }
@@ -128,13 +128,13 @@ function Crawlers() {
       {orbits.map((o, i) => (
         <mesh key={`ring-${i}`} rotation-x={Math.PI / 2 + o.tilt * 0.5} rotation-z={o.tilt}>
           <torusGeometry args={[o.r, 0.006, 8, 160]} />
-          <meshBasicMaterial color={o.color} transparent opacity={0.35} />
+          <meshBasicMaterial color={o.color} transparent opacity={0.6} />
         </mesh>
       ))}
       <group ref={group}>
         {orbits.map((o, i) => (
           <mesh key={`sat-${i}`}>
-            <sphereGeometry args={[0.075, 16, 16]} />
+            <sphereGeometry args={[0.11, 16, 16]} />
             <meshStandardMaterial
               color={o.color}
               emissive={o.color}
@@ -168,7 +168,7 @@ function Dust() {
   });
   return (
     <points ref={ref} geometry={geo}>
-      <pointsMaterial color="#9fd8f5" size={0.035} sizeAttenuation transparent opacity={0.45} />
+      <pointsMaterial color="#9fd8f5" size={0.05} sizeAttenuation transparent opacity={0.65} />
     </points>
   );
 }
