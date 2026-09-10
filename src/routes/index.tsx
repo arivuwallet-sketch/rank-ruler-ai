@@ -160,7 +160,9 @@ function Home() {
       </header>
 
       <section id="top" className="relative overflow-hidden bg-hero">
-        <div className="pointer-events-none absolute inset-0 grid-lines opacity-40" />
+        <div className="pointer-events-none absolute inset-0 grid-lines opacity-25" />
+        <ImmersiveBackdrop className="opacity-70 lg:left-1/3" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_20%_40%,var(--background)_35%,transparent_75%)]" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 md:py-24 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -233,14 +235,16 @@ function Home() {
               visibility in one pass.
             </p>
           </div>
-          <div className="relative">
-            <img
-              src={heroImage}
-              alt="Visualization of an SEO agent mapping a website's link graph"
-              width={1600}
-              height={1000}
-              className="w-full rounded-2xl border border-border object-cover shadow-glow"
-            />
+          <div className="relative hidden min-h-[420px] lg:block">
+            <div className="absolute inset-x-0 bottom-0 rounded-2xl border border-border bg-card/50 p-5 backdrop-blur">
+              <p className="text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                Live index sphere
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Each node is a crawlable element of your page; the orbits are the answer engines
+                reading it. Move your cursor to look around.
+              </p>
+            </div>
           </div>
         </div>
       </section>
