@@ -25,7 +25,7 @@ import {
   TrendingUp,
   XCircle,
 } from "lucide-react";
-import heroImage from "@/assets/hero-agent.jpg";
+import ImmersiveBackdrop from "@/components/three/ImmersiveBackdrop";
 import {
   auditSite,
   type AuditResult,
