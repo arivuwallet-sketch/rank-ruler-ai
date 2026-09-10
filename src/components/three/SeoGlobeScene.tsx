@@ -39,8 +39,8 @@ function Globe() {
   const arcs = useMemo(() => {
     const lines: THREE.Vector3[][] = [];
     for (let i = 0; i < 26; i++) {
-      const a = nodes[(i * 17) % nodes.length];
-      const b = nodes[(i * 53 + 11) % nodes.length];
+      const a = nodes[(i * 17) % nodes.length]!;
+      const b = nodes[(i * 53 + 11) % nodes.length]!;
       const pts: THREE.Vector3[] = [];
       for (let t = 0; t <= 24; t++) {
         const k = t / 24;
@@ -117,7 +117,7 @@ function Crawlers() {
     if (!group.current) return;
     const t = state.clock.elapsedTime;
     group.current.children.forEach((child, i) => {
-      const o = orbits[i % orbits.length];
+      const o = orbits[i % orbits.length]!;
       const a = t * o.speed + i * 2.1;
       child.position.set(Math.cos(a) * o.r, Math.sin(a) * o.r * Math.sin(o.tilt), Math.sin(a) * o.r);
     });
