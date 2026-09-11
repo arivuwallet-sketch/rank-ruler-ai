@@ -38,6 +38,50 @@ export default function FixAllBar({
   const [done, setDone] = useState(0);
   const [fixes, setFixes] = useState<PageFix[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [reviewFirst, setReviewFirst] = useState(true);
+  const [pushing, setPushing] = useState(false);
+
+  async function approveAndPush() {
+    if (kind === "none" || !endpoint.trim()) {
+      setError("Connect your site first (choose a platform and paste the update endpoint).");
+      return;
+    }
+    setPushing(true);
+    setError(null);
+    setStatus(`Pushing ${fixes.filter((f) => f.ok).length} approved pages to your site…`);
+    try {
+      const res = (await push({
+        data: {
+          cms: { kind, endpoint: endpoint.trim(), token: token.trim() || undefined },
+          fixes: fixes
+            .filter((f) => f.ok)
+            .map((f) => ({
+              url: f.url,
+              title: f.title,
+              description: f.description,
+              h1: f.h1,
+              slug: f.slug,
+              tags: f.tags,
+              altTags: f.altTags,
+              llmsTxt: f.llmsTxt,
+              jsonLd: f.jsonLd,
+            })),
+        },
+      })) as { results: { url: string; synced: PageFix["synced"]; note?: string }[] };
+      const map = new Map(res.results.map((r) => [r.url, r]));
+      setFixes((current) =>
+        current.map((f) => {
+          const r = map.get(f.url);
+          return r ? { ...f, synced: r.synced, syncNote: r.note } : f;
+        }),
+      );
+      setStatus("Approved fixes pushed. Live pages are marked below.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The push to your site failed.");
+    } finally {
+      setPushing(false);
+    }
+  }
 
   async function run() {
     setRunning(true);
