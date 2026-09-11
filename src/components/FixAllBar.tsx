@@ -227,7 +227,19 @@ export default function FixAllBar({
               className="mt-1 w-full rounded-lg border border-border bg-secondary/60 px-3 py-2 text-sm outline-none focus:border-mint"
             />
           </label>
-          <p className="text-xs text-muted-foreground md:col-span-3">
+          <label className="flex items-start gap-2 text-xs text-muted-foreground md:col-span-4">
+            <input
+              type="checkbox"
+              checked={reviewFirst}
+              onChange={(e) => setReviewFirst(e.target.checked)}
+              className="mt-0.5 size-4 accent-mint"
+            />
+            <span>
+              Ask me before changing my site — the agent prepares every fix, shows it below, and only
+              publishes after you press approve. Untick to publish straight away.
+            </span>
+          </label>
+          <p className="text-xs text-muted-foreground md:col-span-4">
             Without a connection the agent still fixes everything and hands you the finished text and
             schema for each page. Tokens are used for this run only and never stored.
           </p>
