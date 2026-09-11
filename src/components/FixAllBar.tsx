@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Download, Loader2, Plug, Rocket, X } from "lucide-react";
-import { listSitePages, optimizePage, type PageFix } from "@/lib/fixall.functions";
+import { listSitePages, optimizePage, pushFixes, type PageFix } from "@/lib/fixall.functions";
 
 type CmsKind = "none" | "webhook" | "wordpress" | "shopify" | "webflow";
 
@@ -24,6 +24,7 @@ export default function FixAllBar({
 }) {
   const list = useServerFn(listSitePages);
   const optimize = useServerFn(optimizePage);
+  const push = useServerFn(pushFixes);
 
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<CmsKind>("none");
@@ -37,6 +38,50 @@ export default function FixAllBar({
   const [done, setDone] = useState(0);
   const [fixes, setFixes] = useState<PageFix[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [reviewFirst, setReviewFirst] = useState(true);
+  const [pushing, setPushing] = useState(false);
+
+  async function approveAndPush() {
+    if (kind === "none" || !endpoint.trim()) {
+      setError("Connect your site first (choose a platform and paste the update endpoint).");
+      return;
+    }
+    setPushing(true);
+    setError(null);
+    setStatus(`Pushing ${fixes.filter((f) => f.ok).length} approved pages to your site…`);
+    try {
+      const res = (await push({
+        data: {
+          cms: { kind, endpoint: endpoint.trim(), token: token.trim() || undefined },
+          fixes: fixes
+            .filter((f) => f.ok)
+            .map((f) => ({
+              url: f.url,
+              title: f.title,
+              description: f.description,
+              h1: f.h1,
+              slug: f.slug,
+              tags: f.tags,
+              altTags: f.altTags,
+              llmsTxt: f.llmsTxt,
+              jsonLd: f.jsonLd,
+            })),
+        },
+      })) as { results: { url: string; synced: PageFix["synced"]; note?: string }[] };
+      const map = new Map(res.results.map((r) => [r.url, r]));
+      setFixes((current) =>
+        current.map((f) => {
+          const r = map.get(f.url);
+          return r ? { ...f, synced: r.synced, syncNote: r.note } : f;
+        }),
+      );
+      setStatus("Approved fixes pushed. Live pages are marked below.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The push to your site failed.");
+    } finally {
+      setPushing(false);
+    }
+  }
 
   async function run() {
     setRunning(true);
@@ -62,7 +107,7 @@ export default function FixAllBar({
             brandName: brandName || undefined,
             location: location || undefined,
             cms:
-              kind === "none"
+              kind === "none" || reviewFirst
                 ? { kind: "none" as const }
                 : { kind, endpoint: endpoint.trim(), token: token.trim() || undefined },
           },
@@ -73,7 +118,9 @@ export default function FixAllBar({
       setStatus(
         kind === "none"
           ? "Done. Every page has fresh titles, descriptions, tags, ALT text and schema ready to copy or download."
-          : "Done. Fixes were written to your site where the connection accepted them.",
+          : reviewFirst
+            ? "Done. Review the fixes below, then approve to push them to your site."
+            : "Done. Fixes were written to your site where the connection accepted them.",
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong during the batch run.");
@@ -180,7 +227,19 @@ export default function FixAllBar({
               className="mt-1 w-full rounded-lg border border-border bg-secondary/60 px-3 py-2 text-sm outline-none focus:border-mint"
             />
           </label>
-          <p className="text-xs text-muted-foreground md:col-span-3">
+          <label className="flex items-start gap-2 text-xs text-muted-foreground md:col-span-4">
+            <input
+              type="checkbox"
+              checked={reviewFirst}
+              onChange={(e) => setReviewFirst(e.target.checked)}
+              className="mt-0.5 size-4 accent-mint"
+            />
+            <span>
+              Ask me before changing my site — the agent prepares every fix, shows it below, and only
+              publishes after you press approve. Untick to publish straight away.
+            </span>
+          </label>
+          <p className="text-xs text-muted-foreground md:col-span-4">
             Without a connection the agent still fixes everything and hands you the finished text and
             schema for each page. Tokens are used for this run only and never stored.
           </p>
@@ -215,6 +274,21 @@ export default function FixAllBar({
                 >
                   <Download className="size-3.5" /> Download all fixes
                 </button>
+                {reviewFirst && kind !== "none" && !running && (
+                  <button
+                    type="button"
+                    onClick={() => void approveAndPush()}
+                    disabled={pushing}
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-60"
+                  >
+                    {pushing ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Check className="size-3.5" />
+                    )}
+                    {pushing ? "Publishing…" : "Approve & publish to site"}
+                  </button>
+                )}
               </div>
               <div className="mt-3 max-h-96 overflow-auto rounded-xl border border-border">
                 <table className="w-full text-sm">

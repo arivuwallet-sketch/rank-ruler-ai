@@ -137,6 +137,56 @@ async function writeToCms(
   }
 }
 
+/** Pushes already-generated (and human-approved) fixes to the connected site. */
+export const pushFixes = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        cms: z.object({
+          kind: z.enum(["none", "webhook", "wordpress", "shopify", "webflow"]),
+          endpoint: z.string().max(400).optional(),
+          token: z.string().max(400).optional(),
+        }),
+        fixes: z
+          .array(
+            z.object({
+              url: z.string().min(3).max(400),
+              title: z.string().optional(),
+              description: z.string().optional(),
+              h1: z.string().optional(),
+              slug: z.string().optional(),
+              tags: z.array(z.string()).optional(),
+              altTags: z.array(z.string()).optional(),
+              llmsTxt: z.string().optional(),
+              jsonLd: z.unknown().optional(),
+            }),
+          )
+          .max(50),
+      })
+      .parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ results: { url: string; synced: PageFix["synced"]; note?: string }[] }> => {
+      const results: { url: string; synced: PageFix["synced"]; note?: string }[] = [];
+      for (const fix of data.fixes) {
+        const sync = await writeToCms(data.cms as CmsTarget, fix.url, {
+          title: fix.title,
+          description: fix.description,
+          h1: fix.h1,
+          slug: fix.slug,
+          tags: fix.tags,
+          altTags: fix.altTags,
+          llmsTxt: fix.llmsTxt,
+          jsonLd: fix.jsonLd as JsonValue,
+        } as Omit<PageFix, "synced" | "ok" | "message" | "url">);
+        results.push({ url: fix.url, synced: sync.synced, ...(sync.note ? { note: sync.note } : {}) });
+      }
+      return { results };
+    },
+  );
+
 /** Cleans, generates and (when connected) writes back optimization for a single URL. */
 export const optimizePage = createServerFn({ method: "POST" })
   .inputValidator((data) =>
