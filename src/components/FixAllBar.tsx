@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Download, Loader2, Plug, Rocket, X } from "lucide-react";
-import { listSitePages, optimizePage, type PageFix } from "@/lib/fixall.functions";
+import { listSitePages, optimizePage, pushFixes, type PageFix } from "@/lib/fixall.functions";
 
 type CmsKind = "none" | "webhook" | "wordpress" | "shopify" | "webflow";
 
@@ -24,6 +24,7 @@ export default function FixAllBar({
 }) {
   const list = useServerFn(listSitePages);
   const optimize = useServerFn(optimizePage);
+  const push = useServerFn(pushFixes);
 
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<CmsKind>("none");
