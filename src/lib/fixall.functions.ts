@@ -180,7 +180,7 @@ export const pushFixes = createServerFn({ method: "POST" })
           altTags: fix.altTags,
           llmsTxt: fix.llmsTxt,
           jsonLd: fix.jsonLd as JsonValue,
-        });
+        } as Omit<PageFix, "synced" | "ok" | "message" | "url">);
         results.push({ url: fix.url, synced: sync.synced, ...(sync.note ? { note: sync.note } : {}) });
       }
       return { results };
