@@ -274,6 +274,21 @@ export default function FixAllBar({
                 >
                   <Download className="size-3.5" /> Download all fixes
                 </button>
+                {reviewFirst && kind !== "none" && !running && (
+                  <button
+                    type="button"
+                    onClick={() => void approveAndPush()}
+                    disabled={pushing}
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-60"
+                  >
+                    {pushing ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Check className="size-3.5" />
+                    )}
+                    {pushing ? "Publishing…" : "Approve & publish to site"}
+                  </button>
+                )}
               </div>
               <div className="mt-3 max-h-96 overflow-auto rounded-xl border border-border">
                 <table className="w-full text-sm">
