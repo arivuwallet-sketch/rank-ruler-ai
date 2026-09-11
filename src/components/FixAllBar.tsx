@@ -63,7 +63,7 @@ export default function FixAllBar({
             brandName: brandName || undefined,
             location: location || undefined,
             cms:
-              kind === "none"
+              kind === "none" || reviewFirst
                 ? { kind: "none" as const }
                 : { kind, endpoint: endpoint.trim(), token: token.trim() || undefined },
           },
@@ -74,7 +74,9 @@ export default function FixAllBar({
       setStatus(
         kind === "none"
           ? "Done. Every page has fresh titles, descriptions, tags, ALT text and schema ready to copy or download."
-          : "Done. Fixes were written to your site where the connection accepted them.",
+          : reviewFirst
+            ? "Done. Review the fixes below, then approve to push them to your site."
+            : "Done. Fixes were written to your site where the connection accepted them.",
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong during the batch run.");
