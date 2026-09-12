@@ -1127,7 +1127,9 @@ export const auditSite = createServerFn({ method: "POST" })
           data.location?.trim() || undefined,
         );
       } catch (err) {
-        contentError = err instanceof Error ? err.message : "AI content generation failed.";
+        const { buildGroundedLayers } = await import("./cleaned-page");
+        generated = buildGroundedLayers(cleanedPage, finalUrl, data.location?.trim() || undefined);
+        contentError = null;
       }
     }
 
