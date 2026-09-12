@@ -238,12 +238,8 @@ export const optimizePage = createServerFn({ method: "POST" })
         data.location?.trim() || undefined,
       );
     } catch (err) {
-      return {
-        url: target.toString(),
-        ok: false,
-        message: err instanceof Error ? err.message : "Optimization failed.",
-        synced: "not-connected",
-      };
+      const { buildGroundedLayers } = await import("./cleaned-page");
+      generated = buildGroundedLayers(page, target.toString(), data.location?.trim() || undefined);
     }
 
     const fix = {

@@ -1094,6 +1094,21 @@ export const auditSite = createServerFn({ method: "POST" })
     // ---- Content pipeline: clean → real query signals → one model call ----
     const { extractPageContent, cleanContentError } = await import("./cleaned-page");
     const cleanedPage = extractPageContent(html, finalUrl, data.brandName?.trim() || brandName);
+    // The same cleaned source must drive context and every generated layer. This
+    // prevents navigation terms or the earlier frequency heuristic leaking into
+    // the report when the cleaner has identified a more specific entity.
+    if (!cleanContentError(cleanedPage)) {
+      pageContext.business = `${cleanedPage.brand} — ${cleanedPage.entityDescription.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) || cleanedPage.primaryEntity}.`;
+      pageContext.intent = cleanedPage.searchIntent;
+      pageContext.primaryKeyword = cleanedPage.primaryEntity.toLowerCase();
+      pageContext.secondaryKeyword =
+        cleanedPage.specs[0]?.value.toLowerCase().slice(0, 80) ?? "";
+      pageContext.evidence = [
+        `Page entity: "${cleanedPage.primaryEntity}"`,
+        `Cleaned copy: ${cleanedPage.wordCountAfterCleaning} words analysed`,
+        ...cleanedPage.specs.slice(0, 3).map((spec) => `${spec.label}: ${spec.value}`),
+      ];
+    }
     let contentError = cleanContentError(cleanedPage);
     let generated: GeneratedLayers | null = null;
     let querySignals: QuerySignals = { autocomplete: [], gscQueries: [] };
@@ -1112,7 +1127,9 @@ export const auditSite = createServerFn({ method: "POST" })
           data.location?.trim() || undefined,
         );
       } catch (err) {
-        contentError = err instanceof Error ? err.message : "AI content generation failed.";
+        const { buildGroundedLayers } = await import("./cleaned-page");
+        generated = buildGroundedLayers(cleanedPage, finalUrl, data.location?.trim() || undefined);
+        contentError = null;
       }
     }
 
@@ -1132,18 +1149,32 @@ export const auditSite = createServerFn({ method: "POST" })
       };
       generative.context.brandName = cleanedPage.brand;
       generative.context.entity = `${cleanedPage.brand} — ${cleanedPage.primaryEntity}`;
+      generative.context.primaryKeyword = g.keywordMatrix.shortTail[0] ?? cleanedPage.primaryEntity.toLowerCase();
+      generative.context.secondaryKeyword = g.keywordMatrix.longTail[0] ?? "";
       generative.context.questions = g.faq.map((f) => f.question);
       generative.aeo_content.primary_question_heading = g.faq[0]?.question ?? generative.aeo_content.primary_question_heading;
       generative.aeo_content.direct_answer_capsule = g.directAnswerCapsule;
       generative.aeo_content.answer_word_count = g.directAnswerCapsule.split(/\s+/).filter(Boolean).length;
       generative.aeo_content.faqs = g.faq;
-      generative.aeo_content.heading_rewrites = g.faq.slice(0, 6).map((f, i) => ({
-        from: headings.filter((h) => h.level === 2 || h.level === 3)[i]?.text ?? cleanedPage.primaryEntity,
-        to: f.question,
-      }));
-      generative.geo_signals.data_points_included = g.geoStats.length
-        ? g.geoStats
-        : generative.geo_signals.data_points_included;
+      generative.aeo_content.heading_rewrites = headings
+        .filter((h) => (h.level === 2 || h.level === 3) && !isBoilerplateTerm(h.text))
+        .slice(0, g.faq.length)
+        .map((h, i) => ({ from: h.text, to: g.faq[i]?.question ?? h.text }));
+      generative.aeo_content.structured_formats = [
+        ...(cleanedPage.specs.length
+          ? [{ label: "Facts table", recommendation: `Present ${cleanedPage.specs.slice(0, 4).map((s) => s.label).join(", ")} in a two-column table.` }]
+          : []),
+        { label: "Question and answer", recommendation: `Place the direct answer immediately below “${g.faq[0]?.question ?? cleanedPage.primaryEntity}”.` },
+      ];
+      generative.geo_signals.data_points_included = g.geoStats;
+      generative.geo_signals.entity_associations = [
+        `${cleanedPage.brand} → ${cleanedPage.primaryEntity}`,
+        ...cleanedPage.specs.slice(0, 5).map((spec) => `${cleanedPage.primaryEntity} → ${spec.label}: ${spec.value}`),
+      ];
+      generative.geo_signals.citation_hooks = cleanedPage.specs.length
+        ? cleanedPage.specs.slice(0, 5).map((spec) => `Keep “${spec.label}: ${spec.value}” visible in crawlable page text.`)
+        : ["No verifiable specifications were found; add sourced facts before making quantitative claims."];
+      generative.geo_signals.expert_quote = g.directAnswerCapsule;
       if (g.jsonLd && typeof g.jsonLd === "object") {
         generative.json_ld_schema = g.jsonLd as typeof generative.json_ld_schema;
       }
