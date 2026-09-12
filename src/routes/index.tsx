@@ -580,6 +580,7 @@ function Report({
 
 
         <div className="grid gap-6 lg:grid-cols-2">
+          {result.generated ? (
           <div className="rounded-2xl border border-border bg-card p-6">
             <h3 className="text-xl font-bold">Optimized metadata</h3>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -606,6 +607,19 @@ function Report({
               ))}
             </div>
           </div>
+          ) : (
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <h3 className="text-xl font-bold">Current metadata</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                No replacement copy is shown because grounded generation did not complete.
+              </p>
+              <dl className="mt-5 space-y-4 text-sm">
+                <div><dt className="text-xs uppercase text-muted-foreground">Title</dt><dd className="mt-1">{result.stats.title ?? "Missing"}</dd></div>
+                <div><dt className="text-xs uppercase text-muted-foreground">Description</dt><dd className="mt-1">{result.stats.description ?? "Missing"}</dd></div>
+                <div><dt className="text-xs uppercase text-muted-foreground">H1</dt><dd className="mt-1">{result.stats.h1[0] ?? "Missing"}</dd></div>
+              </dl>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-border bg-card p-6">
             <h3 className="text-xl font-bold">Projected impact</h3>
