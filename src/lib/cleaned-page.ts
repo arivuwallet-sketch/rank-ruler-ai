@@ -83,7 +83,14 @@ function decodeEntities(s: string) {
 }
 
 function strip(html: string) {
-  return decodeEntities(html.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+  return decodeEntities(html.replace(/<[^>]+>/g, " "))
+    // reference markers like [1], [ 12 ], [citation needed], and stray edit links
+    .replace(/\[\s*(\d+|citation needed|edit|note \d+)\s*\]/gi, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function keepLine(line: string) {
