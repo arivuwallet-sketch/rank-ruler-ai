@@ -109,6 +109,9 @@ function detectType(
   if (/\/(collections|category|categories|shop|tag)\b/.test(p)) return "category";
   if (/\/(blog|article|news|post|guide|guides|docs)\b/.test(p)) return "article";
   if (p.replace(/\/+$/, "") === "") return "homepage";
+  if (/"@type"\s*:\s*"(Article|BlogPosting|NewsArticle)"/i.test(html)) return "article";
+  // Long-form prose is an article even when it has many section headings.
+  if (longFormParagraphs >= 6) return "article";
   return headings.length > 6 ? "category" : "article";
 }
 
