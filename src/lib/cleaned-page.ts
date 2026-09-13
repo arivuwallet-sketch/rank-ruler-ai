@@ -181,10 +181,9 @@ export function extractPageContent(html: string, url: string, brandFallback: str
   const specific = entityCandidates.filter((s) => !GENERIC_ENTITY.test(s) && !SECTION_HEADING.test(s));
   const primaryEntity =
     specific[0] ??
-    uniqueSpecs[0]?.label ??
     entityCandidates[0] ??
-    headingTexts[0] ??
-    title ??
+    title.split(/\s[|–—]\s/)[0]?.trim() ??
+    uniqueSpecs[0]?.label ??
     "";
 
   const entityDescription = paragraphs.slice(0, 12).join(" ").slice(0, 4000);
