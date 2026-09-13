@@ -92,7 +92,12 @@ function keepLine(line: string) {
   return !BANNED_LINE.some((re) => re.test(t));
 }
 
-function detectType(url: string, headings: string[], html: string): CleanedPage["pageType"] {
+function detectType(
+  url: string,
+  headings: string[],
+  html: string,
+  longFormParagraphs = 0,
+): CleanedPage["pageType"] {
   const p = (() => {
     try {
       return new URL(url).pathname.toLowerCase();
