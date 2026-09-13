@@ -177,7 +177,12 @@ export function extractPageContent(html: string, url: string, brandFallback: str
       brandFallback)
       .trim() || brandFallback;
 
-  const pageType = detectType(url, headingTexts, html);
+  const pageType = detectType(
+    url,
+    headingTexts,
+    html,
+    paragraphs.filter((p) => p.split(/\s+/).length >= 25).length,
+  );
 
   // The document title / og:title names the page subject far more reliably than the
   // first heading, which is often an in-page section label ("Contents", "History").
