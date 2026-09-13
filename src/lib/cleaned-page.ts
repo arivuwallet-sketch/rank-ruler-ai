@@ -168,15 +168,17 @@ export function extractPageContent(html: string, url: string, brandFallback: str
 
   const pageType = detectType(url, headingTexts, html);
 
+  // The document title / og:title names the page subject far more reliably than the
+  // first heading, which is often an in-page section label ("Contents", "History").
   const entityCandidates = [
+    ogTitle ? decodeEntities(ogTitle).split(/\s[|–—]\s/)[0] : "",
+    title.split(/\s[|–—]\s/)[0],
     headingTexts[0],
-    ogTitle ? decodeEntities(ogTitle) : "",
-    title.split(/[|–—]/)[0],
     headingTexts[1],
   ]
-    .map((s) => (s ?? "").trim())
+    .map((s) => (s ?? "").trim().replace(/\s*[-–—|]\s*$/, ""))
     .filter((s) => s.length > 2 && s.length < 110 && keepLine(s) && !BAD_ENTITY.test(s));
-  const specific = entityCandidates.filter((s) => !GENERIC_ENTITY.test(s));
+  const specific = entityCandidates.filter((s) => !GENERIC_ENTITY.test(s) && !SECTION_HEADING.test(s));
   const primaryEntity =
     specific[0] ??
     uniqueSpecs[0]?.label ??
