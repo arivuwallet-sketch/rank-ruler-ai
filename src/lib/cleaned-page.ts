@@ -61,6 +61,10 @@ const BAD_ENTITY = /price|cart|home|menu|login|search|checkout/i;
 const GENERIC_ENTITY =
   /^(browse|shop|explore|discover|featured|new arrivals?|our (products|collection|story)|best ?sellers?|collections?|products?|welcome|catalog)\b|latest products/i;
 
+/** In-page section labels that are never the subject of the page. */
+const SECTION_HEADING =
+  /^(contents?|table of contents|history|overview|introduction|summary|references?|external links?|see also|further reading|notes?|bibliography|gallery|faqs?|frequently asked questions|reviews?|related( (posts?|articles?|products?))?|comments?|share|categories|navigation|toc|details|description|specifications?|features?|conclusion|background|methods?|results?|examples?|resources?|tags?|archive|author|advertisement)\b/i;
+
 export const BANNED_OUTPUT =
   /add to cart|view cart|check ?out|sign ?up|log ?in|regular price|sale price|sold out|answers ".*" directly/i;
 
