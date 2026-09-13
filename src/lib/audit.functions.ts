@@ -1098,7 +1098,10 @@ export const auditSite = createServerFn({ method: "POST" })
     // prevents navigation terms or the earlier frequency heuristic leaking into
     // the report when the cleaner has identified a more specific entity.
     if (!cleanContentError(cleanedPage)) {
-      pageContext.business = `${cleanedPage.brand} — ${cleanedPage.entityDescription.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) || cleanedPage.primaryEntity}.`;
+      pageContext.business = `${cleanedPage.brand} — ${(
+        cleanedPage.entityDescription.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) ||
+        cleanedPage.primaryEntity
+      ).replace(/[.\s]+$/, "")}.`;
       pageContext.intent = cleanedPage.searchIntent;
       pageContext.primaryKeyword = cleanedPage.primaryEntity.toLowerCase();
       pageContext.secondaryKeyword =
