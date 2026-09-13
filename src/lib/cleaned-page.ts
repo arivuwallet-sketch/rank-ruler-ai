@@ -55,7 +55,10 @@ const BANNED_LINE = [
   /^[\s\W\d]*$/,
 ];
 
-const BAD_ENTITY = /price|cart|home|menu|login|search|checkout/i;
+// Only reject strings that ARE UI labels — never real subjects that merely
+// contain a word like "search" ("Search engine optimization").
+const BAD_ENTITY =
+  /^\s*(price|prices|cart|shopping cart|home|homepage|menu|login|log ?in|sign ?in|sign ?up|search|search results|checkout|check out|my account|account|wishlist)\s*$/i;
 
 /** Collection/promo strings that are never the real subject of a page. */
 const GENERIC_ENTITY =
