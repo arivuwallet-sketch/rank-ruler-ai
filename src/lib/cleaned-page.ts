@@ -323,9 +323,12 @@ export function buildGroundedLayers(page: CleanedPage, pageUrl: string, targetLo
     .replace(/^-|-$/g, "")
     .slice(0, 70);
   const capsule = fitCapsule(page);
-  const detailAnswer = page.specs.length
-    ? page.specs.slice(0, 5).map((spec) => `${spec.label}: ${spec.value}`).join("; ") + "."
-    : sentence(page.entityDescription.split(/(?<=[.!?])\s+/).slice(1).join(" ") || page.entityDescription, 55);
+  const rest = proseSentences(page).filter((s) => !capsule.includes(s));
+  const detailAnswer =
+    proseWithin(rest, 30, 55) ||
+    (page.specs.length
+      ? `${page.specs.slice(0, 5).map((spec) => `${spec.label}: ${spec.value}`).join("; ")}.`
+      : capsule);
   const faq = [
     { question: `What is ${entity}?`, answer: capsule },
     { question: `What details does this page provide about ${entity}?`, answer: detailAnswer || capsule },
