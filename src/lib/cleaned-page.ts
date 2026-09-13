@@ -55,11 +55,18 @@ const BANNED_LINE = [
   /^[\s\W\d]*$/,
 ];
 
-const BAD_ENTITY = /price|cart|home|menu|login|search|checkout/i;
+// Only reject strings that ARE UI labels — never real subjects that merely
+// contain a word like "search" ("Search engine optimization").
+const BAD_ENTITY =
+  /^\s*(price|prices|cart|shopping cart|home|homepage|menu|login|log ?in|sign ?in|sign ?up|search|search results|checkout|check out|my account|account|wishlist)\s*$/i;
 
 /** Collection/promo strings that are never the real subject of a page. */
 const GENERIC_ENTITY =
   /^(browse|shop|explore|discover|featured|new arrivals?|our (products|collection|story)|best ?sellers?|collections?|products?|welcome|catalog)\b|latest products/i;
+
+/** In-page section labels that are never the subject of the page. */
+const SECTION_HEADING =
+  /^(contents?|table of contents|history|overview|introduction|summary|references?|external links?|see also|further reading|notes?|bibliography|gallery|faqs?|frequently asked questions|reviews?|related( (posts?|articles?|products?))?|comments?|share|categories|navigation|toc|details|description|specifications?|features?|conclusion|background|methods?|results?|examples?|resources?|tags?|archive|author|advertisement)\b/i;
 
 export const BANNED_OUTPUT =
   /add to cart|view cart|check ?out|sign ?up|log ?in|regular price|sale price|sold out|answers ".*" directly/i;
@@ -76,7 +83,14 @@ function decodeEntities(s: string) {
 }
 
 function strip(html: string) {
-  return decodeEntities(html.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+  return decodeEntities(html.replace(/<[^>]+>/g, " "))
+    // reference markers like [1], [ 12 ], [citation needed], and stray edit links
+    .replace(/\[\s*(\d+|citation needed|edit|note \d+)\s*\]/gi, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function keepLine(line: string) {
@@ -85,7 +99,12 @@ function keepLine(line: string) {
   return !BANNED_LINE.some((re) => re.test(t));
 }
 
-function detectType(url: string, headings: string[], html: string): CleanedPage["pageType"] {
+function detectType(
+  url: string,
+  headings: string[],
+  html: string,
+  longFormParagraphs = 0,
+): CleanedPage["pageType"] {
   const p = (() => {
     try {
       return new URL(url).pathname.toLowerCase();
@@ -97,6 +116,9 @@ function detectType(url: string, headings: string[], html: string): CleanedPage[
   if (/\/(collections|category|categories|shop|tag)\b/.test(p)) return "category";
   if (/\/(blog|article|news|post|guide|guides|docs)\b/.test(p)) return "article";
   if (p.replace(/\/+$/, "") === "") return "homepage";
+  if (/"@type"\s*:\s*"(Article|BlogPosting|NewsArticle)"/i.test(html)) return "article";
+  // Long-form prose is an article even when it has many section headings.
+  if (longFormParagraphs >= 6) return "article";
   return headings.length > 6 ? "category" : "article";
 }
 
@@ -162,23 +184,34 @@ export function extractPageContent(html: string, url: string, brandFallback: str
       brandFallback)
       .trim() || brandFallback;
 
-  const pageType = detectType(url, headingTexts, html);
+  const pageType = detectType(
+    url,
+    headingTexts,
+    html,
+    paragraphs.filter((p) => p.split(/\s+/).length >= 25).length,
+  );
 
+  // The document title / og:title names the page subject far more reliably than the
+  // first heading, which is often an in-page section label ("Contents", "History").
+  const leadOf = (value: string) => {
+    const parts = value.split(/\s[|–—-]\s/).map((s) => s.trim()).filter(Boolean);
+    const withoutBrand = parts.filter((s) => s.toLowerCase() !== brand.toLowerCase());
+    return (withoutBrand[0] ?? parts[0] ?? value).trim();
+  };
   const entityCandidates = [
+    ogTitle ? leadOf(decodeEntities(ogTitle)) : "",
+    leadOf(title),
     headingTexts[0],
-    ogTitle ? decodeEntities(ogTitle) : "",
-    title.split(/[|–—]/)[0],
     headingTexts[1],
   ]
-    .map((s) => (s ?? "").trim())
+    .map((s) => (s ?? "").trim().replace(/\s*[-–—|]\s*$/, ""))
     .filter((s) => s.length > 2 && s.length < 110 && keepLine(s) && !BAD_ENTITY.test(s));
-  const specific = entityCandidates.filter((s) => !GENERIC_ENTITY.test(s));
+  const specific = entityCandidates.filter((s) => !GENERIC_ENTITY.test(s) && !SECTION_HEADING.test(s));
   const primaryEntity =
     specific[0] ??
-    uniqueSpecs[0]?.label ??
     entityCandidates[0] ??
-    headingTexts[0] ??
-    title ??
+    title.split(/\s[|–—]\s/)[0]?.trim() ??
+    uniqueSpecs[0]?.label ??
     "";
 
   const entityDescription = paragraphs.slice(0, 12).join(" ").slice(0, 4000);
@@ -247,29 +280,65 @@ function fitTitle(entity: string, brand: string): string {
   return base.length > 60 ? base.slice(0, 60).replace(/[|–—,:;-]+$/, "") : base.padEnd(50, " ").trimEnd();
 }
 
+/** Real sentences from the cleaned page body, longest-first prose only (no label dumps). */
+function proseSentences(page: CleanedPage): string[] {
+  return page.entityDescription
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter((s) => {
+      const w = words(s);
+      if (w.length < 8 || w.length > 60) return false;
+      if (!/[a-z]/.test(s)) return false;
+      // drop label/spec lines and colon-separated fragments that read like tables
+      if ((s.match(/:/g) ?? []).length > 0 && w.length < 16) return false;
+      return keepLine(s);
+    });
+}
+
+/** Joins whole sentences until the word budget is met, never mid-sentence. */
+function proseWithin(sentences: string[], minWords: number, maxWords: number): string {
+  const picked: string[] = [];
+  let count = 0;
+  for (const s of sentences) {
+    const n = words(s).length;
+    if (count + n > maxWords) continue;
+    picked.push(/[.!?]$/.test(s) ? s : `${s}.`);
+    count += n;
+    if (count >= minWords) break;
+  }
+  return picked.join(" ").trim();
+}
+
 function fitDescription(page: CleanedPage): string {
-  const fact = sentence(page.entityDescription, 42);
-  const details = page.specs
-    .slice(0, 3)
-    .map((spec) => `${spec.label}: ${spec.value}`)
-    .join("; ");
-  let value = `${fact}${details ? ` Key details include ${details}.` : ""}`.replace(/\s+/g, " ").trim();
+  const sentences = proseSentences(page);
+  let value = proseWithin(sentences, 20, 26) || sentence(page.entityDescription, 26);
   if (value.length < 140) {
-    value += ` This page explains ${page.primaryEntity} using the available product or service details from ${page.brand}.`;
+    const extra = sentences.find((s) => !value.includes(s));
+    if (extra) value = `${value} ${/[.!?]$/.test(extra) ? extra : `${extra}.`}`.trim();
+  }
+  if (value.length < 140) {
+    value = `${value} ${page.brand} sets out what ${page.primaryEntity} covers on this page.`.trim();
   }
   if (value.length > 155) value = `${value.slice(0, 152).replace(/[ ,;:.]+$/, "")}...`;
   return value;
 }
 
 function fitCapsule(page: CleanedPage): string {
-  let value = sentence(page.entityDescription, 60);
-  let list = words(value);
-  if (list.length < 40) {
-    const supported = page.specs.slice(0, 3).map((spec) => `${spec.label} is ${spec.value}`).join(". ");
-    value = `${value} ${supported ? `${supported}.` : ""} The page presents this information for visitors evaluating the subject and its stated details.`;
-    list = words(value);
+  const sentences = proseSentences(page);
+  let value = proseWithin(sentences, 40, 60);
+  if (words(value).length < 40) {
+    const remaining = sentences.filter((s) => !value.includes(s));
+    for (const s of remaining) {
+      const merged = `${value} ${s}`.trim();
+      if (words(merged).length > 60) break;
+      value = merged;
+      if (words(value).length >= 40) break;
+    }
   }
-  value = list.slice(0, 60).join(" ").replace(/[,;:]$/, "");
+  if (words(value).length < 40) {
+    value = `${value} This page from ${page.brand} explains ${page.primaryEntity} using only the information stated on the page itself, so readers and answer engines can rely on it as the source.`.trim();
+  }
+  value = words(value).slice(0, 60).join(" ").replace(/[,;:]$/, "");
   return /[.!?]$/.test(value) ? value : `${value}.`;
 }
 
@@ -282,9 +351,12 @@ export function buildGroundedLayers(page: CleanedPage, pageUrl: string, targetLo
     .replace(/^-|-$/g, "")
     .slice(0, 70);
   const capsule = fitCapsule(page);
-  const detailAnswer = page.specs.length
-    ? page.specs.slice(0, 5).map((spec) => `${spec.label}: ${spec.value}`).join("; ") + "."
-    : sentence(page.entityDescription.split(/(?<=[.!?])\s+/).slice(1).join(" ") || page.entityDescription, 55);
+  const rest = proseSentences(page).filter((s) => !capsule.includes(s));
+  const detailAnswer =
+    proseWithin(rest, 30, 55) ||
+    (page.specs.length
+      ? `${page.specs.slice(0, 5).map((spec) => `${spec.label}: ${spec.value}`).join("; ")}.`
+      : capsule);
   const faq = [
     { question: `What is ${entity}?`, answer: capsule },
     { question: `What details does this page provide about ${entity}?`, answer: detailAnswer || capsule },
