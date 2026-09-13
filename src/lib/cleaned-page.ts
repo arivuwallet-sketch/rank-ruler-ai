@@ -186,9 +186,14 @@ export function extractPageContent(html: string, url: string, brandFallback: str
 
   // The document title / og:title names the page subject far more reliably than the
   // first heading, which is often an in-page section label ("Contents", "History").
+  const leadOf = (value: string) => {
+    const parts = value.split(/\s[|–—-]\s/).map((s) => s.trim()).filter(Boolean);
+    const withoutBrand = parts.filter((s) => s.toLowerCase() !== brand.toLowerCase());
+    return (withoutBrand[0] ?? parts[0] ?? value).trim();
+  };
   const entityCandidates = [
-    ogTitle ? decodeEntities(ogTitle).split(/\s[|–—]\s/)[0] : "",
-    title.split(/\s[|–—]\s/)[0],
+    ogTitle ? leadOf(decodeEntities(ogTitle)) : "",
+    leadOf(title),
     headingTexts[0],
     headingTexts[1],
   ]
