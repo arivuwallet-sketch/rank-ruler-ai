@@ -252,29 +252,65 @@ function fitTitle(entity: string, brand: string): string {
   return base.length > 60 ? base.slice(0, 60).replace(/[|–—,:;-]+$/, "") : base.padEnd(50, " ").trimEnd();
 }
 
+/** Real sentences from the cleaned page body, longest-first prose only (no label dumps). */
+function proseSentences(page: CleanedPage): string[] {
+  return page.entityDescription
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter((s) => {
+      const w = words(s);
+      if (w.length < 8 || w.length > 60) return false;
+      if (!/[a-z]/.test(s)) return false;
+      // drop label/spec lines and colon-separated fragments that read like tables
+      if ((s.match(/:/g) ?? []).length > 0 && w.length < 16) return false;
+      return keepLine(s);
+    });
+}
+
+/** Joins whole sentences until the word budget is met, never mid-sentence. */
+function proseWithin(sentences: string[], minWords: number, maxWords: number): string {
+  const picked: string[] = [];
+  let count = 0;
+  for (const s of sentences) {
+    const n = words(s).length;
+    if (count + n > maxWords) continue;
+    picked.push(/[.!?]$/.test(s) ? s : `${s}.`);
+    count += n;
+    if (count >= minWords) break;
+  }
+  return picked.join(" ").trim();
+}
+
 function fitDescription(page: CleanedPage): string {
-  const fact = sentence(page.entityDescription, 42);
-  const details = page.specs
-    .slice(0, 3)
-    .map((spec) => `${spec.label}: ${spec.value}`)
-    .join("; ");
-  let value = `${fact}${details ? ` Key details include ${details}.` : ""}`.replace(/\s+/g, " ").trim();
+  const sentences = proseSentences(page);
+  let value = proseWithin(sentences, 20, 26) || sentence(page.entityDescription, 26);
   if (value.length < 140) {
-    value += ` This page explains ${page.primaryEntity} using the available product or service details from ${page.brand}.`;
+    const extra = sentences.find((s) => !value.includes(s));
+    if (extra) value = `${value} ${/[.!?]$/.test(extra) ? extra : `${extra}.`}`.trim();
+  }
+  if (value.length < 140) {
+    value = `${value} ${page.brand} sets out what ${page.primaryEntity} covers on this page.`.trim();
   }
   if (value.length > 155) value = `${value.slice(0, 152).replace(/[ ,;:.]+$/, "")}...`;
   return value;
 }
 
 function fitCapsule(page: CleanedPage): string {
-  let value = sentence(page.entityDescription, 60);
-  let list = words(value);
-  if (list.length < 40) {
-    const supported = page.specs.slice(0, 3).map((spec) => `${spec.label} is ${spec.value}`).join(". ");
-    value = `${value} ${supported ? `${supported}.` : ""} The page presents this information for visitors evaluating the subject and its stated details.`;
-    list = words(value);
+  const sentences = proseSentences(page);
+  let value = proseWithin(sentences, 40, 60);
+  if (words(value).length < 40) {
+    const remaining = sentences.filter((s) => !value.includes(s));
+    for (const s of remaining) {
+      const merged = `${value} ${s}`.trim();
+      if (words(merged).length > 60) break;
+      value = merged;
+      if (words(value).length >= 40) break;
+    }
   }
-  value = list.slice(0, 60).join(" ").replace(/[,;:]$/, "");
+  if (words(value).length < 40) {
+    value = `${value} This page from ${page.brand} explains ${page.primaryEntity} using only the information stated on the page itself, so readers and answer engines can rely on it as the source.`.trim();
+  }
+  value = words(value).slice(0, 60).join(" ").replace(/[,;:]$/, "");
   return /[.!?]$/.test(value) ? value : `${value}.`;
 }
 
