@@ -521,18 +521,29 @@ export default function AnalyticsStudio({
         </Card>
       </div>
 
-      <Card title="E-commerce & financial metrics" icon={<ShoppingCart className="size-4" />}>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="Total revenue" value={`$${data.ecommerce.revenue.toLocaleString()}`} />
-          <Stat label="Orders" value={data.ecommerce.orders.toLocaleString()} />
-          <Stat label="Conversion rate" value={`${data.ecommerce.conversionRate}%`} />
-          <Stat label="Average order value" value={`$${data.ecommerce.aov}`} />
-          <Stat label="Customer lifetime value" value={`$${data.ecommerce.clv}`} />
-          <Stat label="Revenue per user" value={`$${data.ecommerce.revenuePerUser}`} />
-          <Stat label="Cart abandonment" value={`${data.ecommerce.cartAbandonment}%`} />
-          <Stat label="Range" value={RANGES.find((r) => r.key === range)!.label} />
-        </div>
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+      {data.metricGroups.commerce || data.metricGroups.subscription ? (
+        <Card
+          title={data.metricGroups.commerce ? "E-commerce & financial metrics" : "Subscription & revenue metrics"}
+          icon={<ShoppingCart className="size-4" />}
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Stat label="Total revenue" value={`$${data.ecommerce.revenue.toLocaleString()}`} sample={data.sample} />
+            <Stat label={data.metricGroups.commerce ? "Orders" : "New subscriptions"} value={data.ecommerce.orders.toLocaleString()} sample={data.sample} />
+            <Stat label="Conversion rate" value={`${data.ecommerce.conversionRate}%`} sample={data.sample} />
+            <Stat label={data.metricGroups.commerce ? "Average order value" : "Average plan value"} value={`$${data.ecommerce.aov}`} sample={data.sample} />
+            <Stat label="Customer lifetime value" value={`$${data.ecommerce.clv}`} sample={data.sample} />
+            <Stat label="Revenue per user" value={`$${data.ecommerce.revenuePerUser}`} sample={data.sample} />
+            {data.metricGroups.commerce ? (
+              <Stat label="Cart abandonment" value={`${data.ecommerce.cartAbandonment}%`} sample={data.sample} />
+            ) : null}
+            <Stat label="Range" value={RANGES.find((r) => r.key === range)!.label} />
+          </div>
+        </Card>
+      ) : null}
+
+      <Card title="Conversion path & reading depth">
+        <div className="grid gap-5 lg:grid-cols-2">
+
           <div>
             <p className="text-xs tracking-wide text-muted-foreground uppercase">Conversion funnel</p>
             <ul className="mt-3 space-y-2">
