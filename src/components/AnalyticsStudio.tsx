@@ -338,8 +338,28 @@ export default function AnalyticsStudio({
   const prev = useMemo(() => (compareOn ? comparePrevious(data) : null), [compareOn, data]);
   const feed = data.live.feed.slice(tick % data.live.feed.length).concat(data.live.feed.slice(0, tick % data.live.feed.length));
 
+  const MODEL_LABEL: Record<BusinessModel, string> = {
+    ecommerce: "Online store (cart / checkout found)",
+    subscription: "Subscription product (pricing and billing found)",
+    marketplace: "Marketplace (vendor / seller signals found)",
+    leadgen: "Lead generation (enquiry form found)",
+    content: "Content publisher (article sections found)",
+    unknown: "Not determined — showing traffic, engagement and search only",
+  };
+
   return (
     <section className="space-y-6">
+      {data.sample ? (
+        <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
+          <p className="text-sm font-semibold text-amber-500">
+            No analytics source is connected — every number below is sample data
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Connect Google Analytics or Search Console to replace these figures with your real measured visitors, clicks and
+            revenue. Business model detected from the scan: {MODEL_LABEL[data.businessModel]}.
+          </p>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h3 className="font-display text-2xl font-bold">Omnipotent Analytics Studio</h3>
