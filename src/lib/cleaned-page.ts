@@ -129,6 +129,47 @@ function keepLine(line: string) {
   return !BANNED_LINE.some((re) => re.test(t));
 }
 
+/**
+ * Live tickers, counters and stat strips ("2297 companies · INR · IST · 09:15-15:30")
+ * are data, not prose. They must never reach a description, capsule or answer.
+ */
+function isDataDump(line: string): boolean {
+  const t = line.trim();
+  if (!t) return true;
+  const separators = (t.match(/[·•|]/g) ?? []).length;
+  if (separators >= 2) return true;
+  if ((t.match(/\d{1,2}:\d{2}/g) ?? []).length >= 2) return true;
+  const digits = (t.match(/\d/g) ?? []).length;
+  if (digits / t.length > 0.12) return true;
+  const sentenceEnds = (t.match(/[.!?](\s|$)/g) ?? []).length;
+  if (words(t).length > 25 && sentenceEnds === 0) return true;
+  return false;
+}
+
+/** Question headings paired with the answer text that follows them on the page. */
+function extractFaqPairs(body: string): { question: string; answer: string }[] {
+  const blocks: { tag: string; text: string }[] = [];
+  for (const m of body.matchAll(/<(h[1-6]|p|dt|dd|li)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
+    const text = strip(m[2] ?? "");
+    if (text) blocks.push({ tag: (m[1] ?? "").toLowerCase(), text });
+  }
+  const pairs: { question: string; answer: string }[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const q = blocks[i]!;
+    if (!/\?\s*$/.test(q.text) || words(q.text).length < 3 || words(q.text).length > 24) continue;
+    const answerParts: string[] = [];
+    for (let j = i + 1; j < blocks.length && answerParts.length < 2; j++) {
+      const a = blocks[j]!;
+      if (/\?\s*$/.test(a.text) || /^h[1-6]$/.test(a.tag)) break;
+      if (words(a.text).length < 4 || isDataDump(a.text) || !keepLine(a.text)) continue;
+      answerParts.push(a.text);
+    }
+    const answer = answerParts.join(" ").trim();
+    if (answer.length >= 25) pairs.push({ question: q.text.replace(/\s+/g, " ").trim(), answer });
+  }
+  return pairs.filter((p, i, all) => all.findIndex((o) => o.question === p.question) === i).slice(0, 6);
+}
+
 function words(value: string): string[] {
   return value.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
 }
