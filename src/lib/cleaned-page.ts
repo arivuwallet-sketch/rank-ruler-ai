@@ -698,7 +698,12 @@ function fitDescription(page: CleanedPage): string {
   if (value.length < 140) {
     value = `${value} ${page.brandName} sets out what ${page.primaryEntity} covers on this page.`.trim();
   }
-  if (value.length > 155) value = `${value.slice(0, 152).replace(/[ ,;:.]+$/, "")}...`;
+  if (value.length > 155) {
+    // Trim on whole words and close the sentence — never cut mid-word.
+    const parts = value.slice(0, 155).split(" ");
+    parts.pop();
+    value = `${parts.join(" ").replace(/[ ,;:.\-–—]+$/, "")}.`;
+  }
   return value;
 }
 
