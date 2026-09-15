@@ -4,7 +4,7 @@ import { buildGenerative, type GenerativeOutput } from "./generative";
 import { buildLevel3, type Level3Output } from "./level3";
 import { detectPageType } from "./generative";
 import { extractMainText, isBoilerplateTerm, synthesizeContext, type PageContext } from "./semantic";
-import type { CleanedPage, GeneratedLayers, QuerySignals } from "./cleaned-page";
+import type { ArtifactRejection, CleanedPage, GeneratedLayers, QuerySignals } from "./cleaned-page";
 
 export type { GenerativeOutput } from "./generative";
 export type { Level3Output } from "./level3";
