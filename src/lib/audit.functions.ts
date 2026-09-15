@@ -1134,17 +1134,24 @@ export const auditSite = createServerFn({ method: "POST" })
     // prevents navigation terms or the earlier frequency heuristic leaking into
     // the report when the cleaner has identified a more specific entity.
     if (!cleanContentError(cleanedPage)) {
-      pageContext.business = `${cleanedPage.brand} — ${(
-        cleanedPage.entityDescription.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) ||
+      // Purpose comes from real body content — never the hero headline alone.
+      pageContext.business = `${cleanedPage.brandName} — ${(
+        cleanedPage.pagePurpose.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) ||
         cleanedPage.primaryEntity
       ).replace(/[.\s]+$/, "")}.`;
       pageContext.intent = cleanedPage.searchIntent;
-      pageContext.primaryKeyword = cleanedPage.primaryEntity.toLowerCase();
+      pageContext.primaryKeyword = cleanedPage.primaryKeyword;
       pageContext.secondaryKeyword =
         cleanedPage.specs[0]?.value.toLowerCase().slice(0, 80) ?? "";
+      pageContext.pageType = cleanedPage.typeReason;
       pageContext.evidence = [
         `Page entity: "${cleanedPage.primaryEntity}"`,
+        cleanedPage.typeReason,
+        ...(cleanedPage.heroTagline ? [`Hero tagline (context only): "${cleanedPage.heroTagline}"`] : []),
         `Cleaned copy: ${cleanedPage.wordCountAfterCleaning} words analysed`,
+        ...(cleanedPage.tables.length
+          ? [`${cleanedPage.tables.length} data table(s) parsed as labelled rows and columns`]
+          : []),
         ...cleanedPage.specs.slice(0, 3).map((spec) => `${spec.label}: ${spec.value}`),
       ];
     }
