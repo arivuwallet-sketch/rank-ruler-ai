@@ -222,6 +222,7 @@ export const auditSite = createServerFn({ method: "POST" })
     let internalLinks = 0;
     let externalLinks = 0;
     let nofollowExternal = 0;
+    const sitePathSet = new Set<string>();
     for (const a of anchors) {
       const href = attr(a, "href");
       if (!href || href.startsWith("#") || /^(mailto|tel|javascript):/i.test(href)) continue;
@@ -231,12 +232,31 @@ export const auditSite = createServerFn({ method: "POST" })
       } catch {
         continue;
       }
-      if (abs.origin === origin) internalLinks++;
-      else {
+      if (abs.origin === origin) {
+        internalLinks++;
+        sitePathSet.add(abs.pathname.replace(/\/+$/, "") || "/");
+      } else {
         externalLinks++;
         if (/rel=["'][^"']*nofollow/i.test(a)) nofollowExternal++;
       }
     }
+    // Only paths that genuinely exist on the scanned site may ever be displayed.
+    const sitePaths = [...sitePathSet].slice(0, 40);
+
+    // Phase 4 — classify the real business model from actual page signals.
+    const businessModel: BusinessModel = (() => {
+      const has = (re: RegExp) => re.test(html);
+      if (has(/\/(cart|checkout|basket)\b/i) || has(/add to (cart|bag)/i) || has(/"@type"\s*:\s*"Product"/i))
+        return "ecommerce";
+      if (has(/\/(pricing|plans|subscribe)\b/i) && has(/\b(per month|\/mo|monthly|annually|billed)\b/i))
+        return "subscription";
+      if (has(/\b(vendors?|sellers?|marketplace|list your)\b/i) && has(/\/(sellers?|vendors?|stores?)\b/i))
+        return "marketplace";
+      if (has(/<form\b[\s\S]{0,600}?(email|phone|message|enquiry|inquiry)/i) || has(/request a (demo|quote|callback)/i))
+        return "leadgen";
+      if (sitePaths.filter((p) => /\/(blog|news|articles?|posts?|guides?)\b/.test(p)).length >= 2) return "content";
+      return "unknown";
+    })();
 
     const jsonLdTypes: string[] = [];
     for (const m of html.matchAll(
