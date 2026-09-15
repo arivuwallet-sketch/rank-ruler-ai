@@ -567,8 +567,21 @@ function groundednessReason(value: string, corpus: string): string | null {
 function fillerReason(value: string, page: CleanedPage): string | null {
   if (GENERIC_FILLER.test(value)) return "generic marketing filler";
   const withoutBrand = value.replace(new RegExp(page.brandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "").toLowerCase();
+  // Significant words shared with the page's own subject wording count as a fact,
+  // as does any wording lifted verbatim from the scanned body.
+  const subjectWords = `${page.primaryEntity} ${page.primaryKeyword}`
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 3 && !BOILERPLATE_OK.has(w));
+  const sharedSubjectWords = subjectWords.filter((w) => withoutBrand.includes(w)).length;
+  const corpus = pageCorpus(page);
+  const verbatim = value
+    .split(/(?<=[.!?])\s+/)
+    .some((s) => s.trim().length > 40 && corpus.includes(s.toLowerCase().replace(/[.!?]+$/, "")));
   const hasConcreteFact =
     /\d/.test(withoutBrand) ||
+    verbatim ||
+    sharedSubjectWords >= 2 ||
     page.specs.some((s) => withoutBrand.includes(s.label.toLowerCase()) || withoutBrand.includes(s.value.toLowerCase())) ||
     (page.primaryEntity.length > 3 && withoutBrand.includes(page.primaryEntity.toLowerCase())) ||
     (page.primaryKeyword.length > 3 && withoutBrand.includes(page.primaryKeyword.toLowerCase()));
@@ -586,24 +599,40 @@ export function validateArtifacts(
   const corpus = pageCorpus(page);
   const rejections: ArtifactRejection[] = [];
 
-  const check = (field: string, value: string, requireFact = false): string => {
+  const failureOf = (value: string, requireFact: boolean): [string, string] | null => {
     const reasons: [string, string | null][] = [
       ["coherence", coherenceReason(value)],
       ["groundedness", groundednessReason(value, corpus)],
       ["filler", requireFact ? fillerReason(value, page) : null],
     ];
     const failed = reasons.find(([, r]) => r);
+    return failed ? [failed[0], failed[1]!] : null;
+  };
+
+  /**
+   * A failing artifact is first repaired from the page's own facts. Only when the
+   * repaired version also fails do we show the honest placeholder.
+   */
+  const check = (field: string, value: string, requireFact = false, repair?: string): string => {
+    const failed = failureOf(value, requireFact);
     if (!failed) return value;
-    rejections.push({ field, check: failed[0], reason: failed[1]!, value });
+    if (repair && repair !== value && !failureOf(repair, requireFact)) {
+      rejections.push({ field, check: failed[0], reason: `${failed[1]} — rebuilt from page facts`, value });
+      return repair;
+    }
+    rejections.push({ field, check: failed[0], reason: failed[1], value });
     return INSUFFICIENT;
   };
 
+  const subject = page.primaryEntity || page.primaryKeyword || page.brandName;
+  const purpose = sentence(page.pagePurpose || page.entityDescription, 24);
+
   const sanitized: GeneratedLayers = {
     ...g,
-    titleTag: check("titleTag", g.titleTag, true),
-    metaDescription: check("metaDescription", g.metaDescription, true),
-    h1: check("h1", g.h1),
-    directAnswerCapsule: check("directAnswerCapsule", g.directAnswerCapsule, true),
+    titleTag: check("titleTag", g.titleTag, true, fitTitle(subject, page.brandName)),
+    metaDescription: check("metaDescription", g.metaDescription, true, purpose || fitDescription(page)),
+    h1: check("h1", g.h1, false, subject),
+    directAnswerCapsule: check("directAnswerCapsule", g.directAnswerCapsule, true, fitCapsule(page)),
     faq: g.faq
       .map((item, i) => ({
         question: check(`faq[${i}].question`, item.question),
@@ -629,16 +658,33 @@ function sentence(value: string, max = 34): string {
   return clipped && !/[.!?]$/.test(clipped) ? `${clipped}.` : clipped;
 }
 
+/** Word-safe title within 50-60 chars — the subject is never cut mid-word. */
 function fitTitle(entity: string, brand: string): string {
-  const endings = [`Features & Details | ${brand}`, `Information & Details | ${brand}`, `Official Details | ${brand}`];
+  const subject = entity.replace(/\s+/g, " ").trim();
+  const endings = [
+    `Features & Details | ${brand}`,
+    `Information & Details | ${brand}`,
+    `Details | ${brand}`,
+    `| ${brand}`,
+    "",
+  ];
+  const trimWords = (text: string, max: number) => {
+    if (text.length <= max) return text;
+    const out: string[] = [];
+    for (const w of text.split(" ")) {
+      if ([...out, w].join(" ").length > max) break;
+      out.push(w);
+    }
+    return out.join(" ").replace(/[|–—,:;&-]+$/, "").trim();
+  };
   for (const ending of endings) {
-    const room = 60 - ending.length - 3;
-    const lead = entity.slice(0, Math.max(1, room)).trim().replace(/[|–—,:;-]+$/, "");
-    const value = `${lead} — ${ending}`;
+    const sep = ending ? (ending.startsWith("|") ? " " : " — ") : "";
+    const lead = trimWords(subject, 60 - ending.length - sep.length);
+    if (!lead) continue;
+    const value = `${lead}${sep}${ending}`.trim();
     if (value.length >= 50 && value.length <= 60) return value;
   }
-  const base = `${entity} — Details, Features & Information | ${brand}`;
-  return base.length > 60 ? base.slice(0, 60).replace(/[|–—,:;-]+$/, "") : base.padEnd(50, " ").trimEnd();
+  return trimWords(`${subject} | ${brand}`, 60) || subject.slice(0, 60);
 }
 
 /** Real sentences from the cleaned page body, longest-first prose only (no label dumps). */
@@ -672,17 +718,27 @@ function proseWithin(sentences: string[], minWords: number, maxWords: number): s
   return picked.join(" ").trim();
 }
 
+/** Whole sentences only, packed as close to 155 chars as they fit — never a fragment. */
 function fitDescription(page: CleanedPage): string {
-  const sentences = proseSentences(page);
-  let value = proseWithin(sentences, 20, 26) || sentence(page.entityDescription, 26);
-  if (value.length < 140) {
-    const extra = sentences.find((s) => !value.includes(s));
-    if (extra) value = `${value} ${/[.!?]$/.test(extra) ? extra : `${extra}.`}`.trim();
+  const pool = proseSentences(page).map((s) => (/[.!?]$/.test(s) ? s : `${s}.`));
+  const candidates = pool.length ? pool : [sentence(page.entityDescription, 26)].filter(Boolean);
+  let value = "";
+  for (const s of candidates) {
+    if (s.length > 155) continue;
+    const merged = value ? `${value} ${s}` : s;
+    if (merged.length > 155) continue;
+    value = merged;
+    if (value.length >= 140) break;
   }
-  if (value.length < 140) {
-    value = `${value} ${page.brandName} sets out what ${page.primaryEntity} covers on this page.`.trim();
+  if (!value) {
+    const first = candidates[0] ?? `${page.brandName}: ${page.primaryEntity}.`;
+    const out: string[] = [];
+    for (const w of first.split(" ")) {
+      if ([...out, w].join(" ").length > 152) break;
+      out.push(w);
+    }
+    value = `${out.join(" ").replace(/[ ,;:.\-–—]+$/, "")}.`;
   }
-  if (value.length > 155) value = `${value.slice(0, 152).replace(/[ ,;:.]+$/, "")}...`;
   return value;
 }
 
