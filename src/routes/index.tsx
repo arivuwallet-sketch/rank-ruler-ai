@@ -675,6 +675,8 @@ function Report({
             <AnalyticsStudio
               finalUrl={result.finalUrl}
               primary={result.pageContext.primaryKeyword}
+              businessModel={result.businessModel}
+              sitePaths={result.sitePaths}
             />
           </>
         )}
