@@ -439,7 +439,7 @@ export function extractPageContent(html: string, url: string, brandFallback: str
   const heroTagline =
     firstHeading &&
     firstHeading !== primaryEntity &&
-    !SECTION_HEADING.has(firstHeading.toLowerCase().replace(/[^a-z ]/g, "").trim()) &&
+    !SECTION_HEADING.test(firstHeading.trim()) &&
     words(firstHeading).length >= 3
       ? firstHeading
       : "";
