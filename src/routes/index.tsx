@@ -455,7 +455,27 @@ function Report({
             What the agent understood before writing anything — menus, buttons, carts and prices
             were stripped out first.
           </p>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl bg-secondary/60 p-4">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">Brand name</span>
+              <p className="mt-1 text-sm font-medium">{result.cleanedPage.brandName}</p>
+            </div>
+            <div className="rounded-xl bg-secondary/60 p-4">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                Page type · {result.cleanedPage.pageType}
+              </span>
+              <p className="mt-1 text-sm font-medium">{result.cleanedPage.typeReason}</p>
+            </div>
+            {result.cleanedPage.heroTagline ? (
+              <div className="rounded-xl bg-secondary/60 p-4 md:col-span-2">
+                <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                  Hero tagline (kept separate — never used as a keyword or brand)
+                </span>
+                <p className="mt-1 text-sm font-medium">{result.cleanedPage.heroTagline}</p>
+              </div>
+            ) : null}
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
             <div className="rounded-xl bg-secondary/60 p-4">
               <span className="text-xs tracking-wide text-muted-foreground uppercase">
                 What this page offers
