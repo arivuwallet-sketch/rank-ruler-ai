@@ -151,10 +151,13 @@ function titleCase(value: string) {
 
 /** Brand from logo alt, Organization schema, title tail, footer copyright, og:site_name. */
 function extractBrand(html: string, fallback: string): string {
+  // "author" blocks are deliberately excluded: an article's author is not the brand.
+  const authorBlock = /"author"\s*:\s*\{[^}]*\}/gi;
+  const schemaSafe = html.replace(authorBlock, "");
   const candidates: (string | undefined)[] = [
     html.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)/i)?.[1],
-    html.match(/"@type"\s*:\s*"Organization"[\s\S]{0,300}?"name"\s*:\s*"([^"]+)"/i)?.[1],
-    html.match(/"name"\s*:\s*"([^"]+)"[\s\S]{0,200}?"@type"\s*:\s*"Organization"/i)?.[1],
+    schemaSafe.match(/"publisher"\s*:\s*\{[^}]*?"name"\s*:\s*"([^"]+)"/i)?.[1],
+    schemaSafe.match(/"@type"\s*:\s*"Organization"[\s\S]{0,300}?"name"\s*:\s*"([^"]+)"/i)?.[1],
     html.match(/<img[^>]*(?:class|id)=["'][^"']*logo[^"']*["'][^>]*alt=["']([^"']+)/i)?.[1],
     html.match(/<img[^>]*alt=["']([^"']+)["'][^>]*(?:class|id)=["'][^"']*logo/i)?.[1],
     strip(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "")
