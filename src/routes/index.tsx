@@ -528,6 +528,26 @@ function Report({
               )}
             </div>
           )}
+          {result.validationRejections.length > 0 && (
+            <div className="mt-5 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
+              <p className="text-sm font-semibold text-amber-500">
+                {result.validationRejections.length} draft{result.validationRejections.length === 1 ? "" : "s"} rejected
+                before publishing
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Anything that was cut off mid-sentence, could not be traced back to this page, or read as generic filler was
+                removed instead of shown to you.
+              </p>
+              <ul className="mt-3 space-y-2 text-sm">
+                {result.validationRejections.slice(0, 8).map((r, i) => (
+                  <li key={`${r.field}-${i}`} className="rounded-lg bg-background/40 p-3">
+                    <span className="font-mono text-xs text-muted-foreground">{r.field}</span> · {r.reason}
+                    {r.value ? <p className="mt-1 text-xs text-muted-foreground italic">“{r.value.slice(0, 160)}”</p> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6">
