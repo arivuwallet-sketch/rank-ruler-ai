@@ -25,6 +25,8 @@ export type CleanedPage = {
   entityDescription: string;
   specs: { label: string; value: string }[];
   tables: PageTable[];
+  /** Real question/answer pairs visible on the page — never invented. */
+  faqPairs: { question: string; answer: string }[];
   priceINR?: number | null;
   searchIntent: string;
   wordCountAfterCleaning: number;
@@ -125,6 +127,52 @@ function keepLine(line: string) {
   const t = line.trim();
   if (t.length < 3) return false;
   return !BANNED_LINE.some((re) => re.test(t));
+}
+
+/**
+ * Live tickers, counters and stat strips ("2297 companies · INR · IST · 09:15-15:30")
+ * are data, not prose. They must never reach a description, capsule or answer.
+ */
+function isDataDump(line: string): boolean {
+  const t = line.trim();
+  if (!t) return true;
+  const separators = (t.match(/[·•|]/g) ?? []).length;
+  if (separators >= 2) return true;
+  // one separator plus digits is a stat strip / clock row, not a sentence
+  if (separators >= 1 && /\d/.test(t)) return true;
+  if (/\bLIVE\b/.test(t)) return true;
+  if ((t.match(/\d{1,2}:\d{2}/g) ?? []).length >= 2) return true;
+  const digits = (t.match(/\d/g) ?? []).length;
+  if (digits / t.length > 0.12) return true;
+  const sentenceEnds = (t.match(/[.!?](\s|$)/g) ?? []).length;
+  if (words(t).length > 25 && sentenceEnds === 0) return true;
+  return false;
+}
+
+/** Question headings paired with the answer text that follows them on the page. */
+function extractFaqPairs(body: string): { question: string; answer: string }[] {
+  const blocks: { tag: string; text: string }[] = [];
+  for (const m of body.matchAll(/<(h[1-6]|p|dt|dd|li)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
+    const text = strip(m[2] ?? "");
+    if (text) blocks.push({ tag: (m[1] ?? "").toLowerCase(), text });
+  }
+  const pairs: { question: string; answer: string }[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const q = blocks[i]!;
+    if (!/\?\s*$/.test(q.text) || words(q.text).length < 3 || words(q.text).length > 24) continue;
+    const answerParts: string[] = [];
+    for (let j = i + 1; j < blocks.length && answerParts.length < 2; j++) {
+      const a = blocks[j]!;
+      if (/\?\s*$/.test(a.text) || /^h[1-6]$/.test(a.tag)) break;
+      // only real sentences may answer — link lists and label rows are skipped
+      if (words(a.text).length < 5 || isDataDump(a.text) || !keepLine(a.text)) continue;
+      if (!/[.!?]["')\]]?$/.test(a.text.trim())) continue;
+      answerParts.push(a.text);
+    }
+    const answer = answerParts.join(" ").trim();
+    if (answer.length >= 25) pairs.push({ question: q.text.replace(/\s+/g, " ").trim(), answer });
+  }
+  return pairs.filter((p, i, all) => all.findIndex((o) => o.question === p.question) === i).slice(0, 6);
 }
 
 function words(value: string): string[] {
@@ -346,16 +394,17 @@ export function extractPageContent(html: string, url: string, brandFallback: str
   const paragraphs: string[] = [];
   for (const m of body.matchAll(/<(p|li|dd|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
     const t = strip(m[2] ?? "");
-    if (t.split(/\s+/).length >= 6 && keepLine(t)) paragraphs.push(t);
+    if (t.split(/\s+/).length >= 6 && keepLine(t) && !isDataDump(t)) paragraphs.push(t);
   }
   if (paragraphs.length === 0) {
     const flat = strip(body)
       .split(/(?<=[.!?])\s+/)
-      .filter((s) => s.split(/\s+/).length >= 6 && keepLine(s));
+      .filter((s) => s.split(/\s+/).length >= 6 && keepLine(s) && !isDataDump(s));
     paragraphs.push(...flat.slice(0, 40));
   }
 
   const tables = parseTables(body);
+  const faqPairs = extractFaqPairs(body);
 
   // specs from tables / definition lists / "Label: value" lines
   const specs: { label: string; value: string }[] = [];
@@ -420,12 +469,19 @@ export function extractPageContent(html: string, url: string, brandFallback: str
     .map((s) => (s ?? "").trim().replace(/\s*[-–—|]\s*$/, ""))
     .filter((s) => s.length > 2 && s.length < 110 && keepLine(s) && !BAD_ENTITY.test(s));
   const specific = entityCandidates.filter((s) => !GENERIC_ENTITY.test(s) && !SECTION_HEADING.test(s));
-  const primaryEntity =
-    specific[0] ??
-    entityCandidates[0] ??
-    title.split(/\s[|–—]\s/)[0]?.trim() ??
-    uniqueSpecs[0]?.label ??
-    "";
+  // On brand-level pages the subject IS the organisation, not the descriptive
+  // half of the title tag ("Global Stock Screener & Fundamental Analysis").
+  const brandIsSubject =
+    !!brandName &&
+    (pageType === "homepage" || pageType === "faq" || pageType === "pricing") &&
+    new RegExp(`\\b${brandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(`${title} ${ogTitle ?? ""}`);
+  const primaryEntity = brandIsSubject
+    ? brandName
+    : (specific[0] ??
+      entityCandidates[0] ??
+      title.split(/\s[|–—]\s/)[0]?.trim() ??
+      uniqueSpecs[0]?.label ??
+      "");
 
   const entityDescription = paragraphs.slice(0, 12).join(" ").slice(0, 4000);
   const wordCountAfterCleaning = `${headingTexts.join(" ")} ${entityDescription}`
@@ -459,10 +515,12 @@ export function extractPageContent(html: string, url: string, brandFallback: str
       .join(" ")
       .slice(0, 320) || (metaDescription || "").slice(0, 320);
 
+  // The keyword is what people type, so prefer the descriptive half of the title
+  // over the brand even when the brand is the page subject.
   const primaryKeyword = extractPrimaryKeyword(
     `${headingTexts.join(" ")} ${entityDescription}`,
     metaKeywords,
-    primaryEntity,
+    brandIsSubject ? (specific.find((s) => s.toLowerCase() !== brandName.toLowerCase()) ?? primaryEntity) : primaryEntity,
     brandName,
   );
 
@@ -491,6 +549,7 @@ export function extractPageContent(html: string, url: string, brandFallback: str
     entityDescription,
     specs: uniqueSpecs,
     tables,
+    faqPairs,
     priceINR,
     searchIntent,
     wordCountAfterCleaning,
@@ -629,7 +688,7 @@ export function validateArtifacts(
 
   const sanitized: GeneratedLayers = {
     ...g,
-    titleTag: check("titleTag", g.titleTag, true, fitTitle(subject, page.brandName)),
+    titleTag: check("titleTag", g.titleTag, true, fitTitle(subject, page.brandName, page.primaryKeyword)),
     metaDescription: check("metaDescription", g.metaDescription, true, purpose || fitDescription(page)),
     h1: check("h1", g.h1, false, subject),
     directAnswerCapsule: check("directAnswerCapsule", g.directAnswerCapsule, true, fitCapsule(page)),
@@ -659,8 +718,18 @@ function sentence(value: string, max = 34): string {
 }
 
 /** Word-safe title within 50-60 chars — the subject is never cut mid-word. */
-function fitTitle(entity: string, brand: string): string {
+function fitTitle(entity: string, brand: string, keyword = ""): string {
   const subject = entity.replace(/\s+/g, " ").trim();
+  // When the page subject IS the brand, the descriptive keyword carries the title
+  // instead of repeating the brand twice ("DeepScreen | DeepScreen").
+  if (subject.toLowerCase() === brand.toLowerCase() && keyword) {
+    const kw = keyword.replace(/\s+/g, " ").trim().replace(/^./, (c) => c.toUpperCase());
+    for (const value of [`${brand} — ${kw}`, `${brand} — ${kw} Details`, `${kw} | ${brand}`]) {
+      if (value.length >= 45 && value.length <= 60) return value;
+    }
+    const short = `${brand} — ${kw}`;
+    if (short.length <= 60) return short;
+  }
   const endings = [
     `Features & Details | ${brand}`,
     `Information & Details | ${brand}`,
@@ -720,7 +789,15 @@ function proseWithin(sentences: string[], minWords: number, maxWords: number): s
 
 /** Whole sentences only, packed as close to 155 chars as they fit — never a fragment. */
 function fitDescription(page: CleanedPage): string {
-  const pool = proseSentences(page).map((s) => (/[.!?]$/.test(s) ? s : `${s}.`));
+  const subjectWord = (page.primaryEntity || page.brandName).split(/\s+/)[0]?.toLowerCase() ?? "";
+  const pool = proseSentences(page)
+    .map((s) => (/[.!?]$/.test(s) ? s : `${s}.`))
+    .sort((a, b) => {
+      const rank = (t: string) =>
+        (/^(it|this|that|they|these|those|there|here)\b/i.test(t) ? 2 : 0) +
+        (subjectWord && t.toLowerCase().includes(subjectWord) ? 0 : 1);
+      return rank(a) - rank(b);
+    });
   const candidates = pool.length ? pool : [sentence(page.entityDescription, 26)].filter(Boolean);
   let value = "";
   for (const s of candidates) {
@@ -778,11 +855,25 @@ export function buildGroundedLayers(page: CleanedPage, pageUrl: string, targetLo
     .filter(Boolean)
     .slice(0, 3);
   const detailAnswer = proseWithin(rest, 30, 55) || tableSentences.join(" ") || capsule;
-  const faq = [
-    { question: `What is ${entity}?`, answer: capsule },
-    { question: `What details does this page provide about ${entity}?`, answer: detailAnswer || capsule },
-    { question: `Who is this ${entity} page intended for?`, answer: page.searchIntent.replace(/^[^—]+—\s*/, "") },
-  ];
+  // Real questions and answers already on the page always win. Generated entries
+  // only top the list up, and only from grounded prose — never a template about
+  // "what this page provides".
+  const realPairs = page.faqPairs.map((pair) => ({
+    question: pair.question,
+    answer:
+      proseWithin(proseSentences({ ...page, entityDescription: pair.answer, pagePurpose: "" }), 8, 70) ||
+      pair.answer,
+  }));
+  const faq = [...realPairs];
+  const has = (q: string) => faq.some((item) => item.question.toLowerCase() === q.toLowerCase());
+  if (faq.length < 3 && !has(`What is ${entity}?`)) faq.push({ question: `What is ${entity}?`, answer: capsule });
+  if (faq.length < 3 && detailAnswer && detailAnswer !== capsule)
+    faq.push({ question: `How does ${entity} work?`, answer: detailAnswer });
+  if (faq.length < 3 && page.specs.length)
+    faq.push({
+      question: `What does ${entity} cover?`,
+      answer: page.specs.slice(0, 4).map((spec) => `${spec.label}: ${spec.value}`).join(". ") + ".",
+    });
   const origin = new URL(pageUrl).origin;
   const pageSchemaType =
     page.pageType === "product"
@@ -802,7 +893,7 @@ export function buildGroundedLayers(page: CleanedPage, pageUrl: string, targetLo
     ...page.entityDescription.split(/(?<=[.!?])\s+/).filter((s) => /\d/.test(s) && !looksRunTogether(s)),
   ].slice(0, 6);
   return {
-    titleTag: fitTitle(entity, brand),
+    titleTag: fitTitle(entity, brand, page.primaryKeyword),
     metaDescription: fitDescription(page),
     h1: entity,
     urlSlug: slug,
