@@ -546,6 +546,7 @@ export default function AnalyticsStudio({
 
           <div>
             <p className="text-xs tracking-wide text-muted-foreground uppercase">Conversion funnel</p>
+            {data.sample ? <SampleTag /> : null}
             <ul className="mt-3 space-y-2">
               {data.funnel.map((f, i) => {
                 const pct = (f.users / data.funnel[0]!.users) * 100;
