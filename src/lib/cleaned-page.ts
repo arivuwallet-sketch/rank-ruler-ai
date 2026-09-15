@@ -540,8 +540,7 @@ function coherenceReason(value: string): string | null {
   const v = (value ?? "").trim();
   if (!v) return "empty output";
   if (/\b(for|of|and|with|to|in|the|a|an|that|by|on)\s*[.]$/i.test(v)) return "dangling trailing clause";
-  if (/\w-$/.test(v) || /\.{3}$/.test(v.replace(/\s+$/, "")) === false && /[a-z]{2}$/.test(v) === false && v.length < 4)
-    return "mid-word truncation";
+  if (/\w-$/.test(v) || v.length < 4) return "mid-word truncation";
   if (looksRunTogether(v)) return "run-together data dump or column header used as a topic";
   if (BANNED_OUTPUT.test(v)) return "banned navigation/commerce phrasing";
   return null;
