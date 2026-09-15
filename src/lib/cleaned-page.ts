@@ -567,8 +567,21 @@ function groundednessReason(value: string, corpus: string): string | null {
 function fillerReason(value: string, page: CleanedPage): string | null {
   if (GENERIC_FILLER.test(value)) return "generic marketing filler";
   const withoutBrand = value.replace(new RegExp(page.brandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "").toLowerCase();
+  // Significant words shared with the page's own subject wording count as a fact,
+  // as does any wording lifted verbatim from the scanned body.
+  const subjectWords = `${page.primaryEntity} ${page.primaryKeyword}`
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 3 && !BOILERPLATE_OK.has(w));
+  const sharedSubjectWords = subjectWords.filter((w) => withoutBrand.includes(w)).length;
+  const corpus = pageCorpus(page);
+  const verbatim = value
+    .split(/(?<=[.!?])\s+/)
+    .some((s) => s.trim().length > 40 && corpus.includes(s.toLowerCase().replace(/[.!?]+$/, "")));
   const hasConcreteFact =
     /\d/.test(withoutBrand) ||
+    verbatim ||
+    sharedSubjectWords >= 2 ||
     page.specs.some((s) => withoutBrand.includes(s.label.toLowerCase()) || withoutBrand.includes(s.value.toLowerCase())) ||
     (page.primaryEntity.length > 3 && withoutBrand.includes(page.primaryEntity.toLowerCase())) ||
     (page.primaryKeyword.length > 3 && withoutBrand.includes(page.primaryKeyword.toLowerCase()));
