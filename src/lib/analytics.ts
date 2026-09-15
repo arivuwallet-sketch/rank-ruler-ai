@@ -204,13 +204,36 @@ export function buildAnalytics(
   };
 
   const funnelStart = sessions;
-  const funnel = [
-    { step: "Landing view", users: funnelStart },
-    { step: "Product / offer view", users: Math.round(funnelStart * 0.52) },
-    { step: "Add to cart", users: Math.round(funnelStart * 0.19) },
-    { step: "Checkout started", users: Math.round(funnelStart * 0.08) },
-    { step: "Purchase", users: orders },
-  ];
+  const commerce = businessModel === "ecommerce" || businessModel === "marketplace";
+  const subscription = businessModel === "subscription";
+  const leads = businessModel === "leadgen" || businessModel === "content";
+  const funnel = commerce
+    ? [
+        { step: "Landing view", users: funnelStart },
+        { step: "Product / offer view", users: Math.round(funnelStart * 0.52) },
+        { step: "Add to cart", users: Math.round(funnelStart * 0.19) },
+        { step: "Checkout started", users: Math.round(funnelStart * 0.08) },
+        { step: "Purchase", users: orders },
+      ]
+    : subscription
+      ? [
+          { step: "Landing view", users: funnelStart },
+          { step: "Pricing / plans view", users: Math.round(funnelStart * 0.44) },
+          { step: "Signup started", users: Math.round(funnelStart * 0.12) },
+          { step: "Trial started", users: orders },
+        ]
+      : leads
+        ? [
+            { step: "Landing view", users: funnelStart },
+            { step: "Key content read", users: Math.round(funnelStart * 0.48) },
+            { step: "Form viewed", users: Math.round(funnelStart * 0.14) },
+            { step: "Form submitted", users: Math.round(funnelStart * 0.04) },
+          ]
+        : [
+            { step: "Landing view", users: funnelStart },
+            { step: "Engaged session", users: Math.round(funnelStart * 0.46) },
+            { step: "Second page viewed", users: Math.round(funnelStart * 0.22) },
+          ];
   const scroll = [
     { depth: "25%", share: 92 },
     { depth: "50%", share: Math.round(64 + rnd() * 10) },
