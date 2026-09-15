@@ -1306,5 +1306,11 @@ export const auditSite = createServerFn({ method: "POST" })
       generated,
       querySignals,
       contentError,
+      businessModel,
+      sitePaths,
+      localBusiness:
+        /"@type"\s*:\s*"LocalBusiness"/i.test(html) ||
+        sitePaths.some((p) => /\/(locations?|branches?|stores?|find-us|our-offices)\b/.test(p)),
+      validationRejections,
     };
   });
