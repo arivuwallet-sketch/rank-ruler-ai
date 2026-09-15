@@ -10,7 +10,7 @@ import {
   ShoppingCart,
   Users,
 } from "lucide-react";
-import { buildAnalytics, comparePrevious, daysBetween, toCsv, type AnalyticsData, type RangeKey, type Row } from "@/lib/analytics";
+import { buildAnalytics, comparePrevious, daysBetween, toCsv, type AnalyticsData, type BusinessModel, type RangeKey, type Row } from "@/lib/analytics";
 
 const RANGES: { key: RangeKey; label: string }[] = [
   { key: "live", label: "Live" },
