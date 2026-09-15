@@ -62,18 +62,27 @@ function share(values: number[]): number[] {
   return values.map((v) => Math.round((v / total) * 1000) / 10);
 }
 
-export function buildAnalytics(finalUrl: string, range: RangeKey, primary: string, tick = 0, customDays?: number): AnalyticsData {
+export function buildAnalytics(
+  finalUrl: string,
+  range: RangeKey,
+  primary: string,
+  tick = 0,
+  customDays?: number,
+  opts: { businessModel?: BusinessModel; sitePaths?: string[] } = {},
+): AnalyticsData {
   const url = new URL(finalUrl);
   const host = url.hostname.replace(/^www\./, "");
   const days = range === "custom" && customDays ? customDays : RANGE_DAYS[range];
   const rnd = seeded(host + range + days);
   const scale = days === 1 ? 1 : days;
   const base = 240 + Math.round(rnd() * 900);
+  const businessModel: BusinessModel = opts.businessModel ?? "unknown";
+  // Only paths the scan actually found on the real site may be displayed.
+  const paths = (opts.sitePaths?.length ? opts.sitePaths : ["/"]).slice(0, 6);
 
   // ---- Live ----
   const liveRnd = seeded(host + tick);
   const liveUsers = Math.max(3, Math.round(base * 0.06 + liveRnd() * base * 0.05));
-  const paths = ["/", "/pricing", "/blog/" + primary.replace(/\s+/g, "-"), "/features", "/contact", "/checkout"];
   const livePages = paths.slice(0, 5).map((p) => ({ path: p, users: Math.max(1, Math.round(liveUsers * (0.1 + liveRnd() * 0.35))) }));
   const cities = [
     ["New York", "United States", 24, 36],
@@ -88,11 +97,11 @@ export function buildAnalytics(finalUrl: string, range: RangeKey, primary: strin
   const pins = cities.map(([city, country, x, y]) => ({ city, country, users: Math.max(1, Math.round(liveRnd() * liveUsers * 0.4)), x, y }));
   const feed = [
     `New session from ${pins[0]!.city} → ${paths[0]}`,
-    `Organic click on "${primary}" → ${paths[2]}`,
-    `Scroll depth 75% on ${paths[1]}`,
-    `Add to cart · ${paths[5]}`,
+    `Organic click on "${primary}" → ${paths[Math.min(1, paths.length - 1)]}`,
+    `Scroll depth 75% on ${paths[Math.min(2, paths.length - 1)]}`,
+    ...(businessModel === "ecommerce" ? [`Add to cart · ${paths[Math.min(3, paths.length - 1)]}`] : []),
     `Returning visitor from ${pins[3]!.city}`,
-    `Referral from google.com → ${paths[3]}`,
+    `Referral from google.com → ${paths[Math.min(4, paths.length - 1)]}`,
   ];
 
   // ---- Time series ----
