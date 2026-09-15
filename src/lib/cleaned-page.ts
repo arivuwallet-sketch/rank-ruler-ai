@@ -544,6 +544,7 @@ export function extractPageContent(html: string, url: string, brandFallback: str
     entityDescription,
     specs: uniqueSpecs,
     tables,
+    faqPairs,
     priceINR,
     searchIntent,
     wordCountAfterCleaning,
@@ -836,7 +837,9 @@ export function buildGroundedLayers(page: CleanedPage, pageUrl: string, targetLo
   // "what this page provides".
   const realPairs = page.faqPairs.map((pair) => ({
     question: pair.question,
-    answer: proseWithin(proseSentences(pair.answer ? { ...page, entityDescription: pair.answer, pagePurpose: "" } : page), 60) || pair.answer,
+    answer:
+      proseWithin(proseSentences({ ...page, entityDescription: pair.answer, pagePurpose: "" }), 8, 70) ||
+      pair.answer,
   }));
   const faq = [...realPairs];
   const has = (q: string) => faq.some((item) => item.question.toLowerCase() === q.toLowerCase());
