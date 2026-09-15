@@ -618,6 +618,9 @@ function Scaling({ g, localBusiness }: { g: GrowthOutput; localBusiness: boolean
           </table>
         </div>
       </SectionCard>
+      ) : null}
+
+
 
       <SectionCard
         title="Languages & hreflang"
