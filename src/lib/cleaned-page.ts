@@ -645,16 +645,33 @@ function sentence(value: string, max = 34): string {
   return clipped && !/[.!?]$/.test(clipped) ? `${clipped}.` : clipped;
 }
 
+/** Word-safe title within 50-60 chars — the subject is never cut mid-word. */
 function fitTitle(entity: string, brand: string): string {
-  const endings = [`Features & Details | ${brand}`, `Information & Details | ${brand}`, `Official Details | ${brand}`];
+  const subject = entity.replace(/\s+/g, " ").trim();
+  const endings = [
+    `Features & Details | ${brand}`,
+    `Information & Details | ${brand}`,
+    `Details | ${brand}`,
+    `| ${brand}`,
+    "",
+  ];
+  const trimWords = (text: string, max: number) => {
+    if (text.length <= max) return text;
+    const out: string[] = [];
+    for (const w of text.split(" ")) {
+      if ([...out, w].join(" ").length > max) break;
+      out.push(w);
+    }
+    return out.join(" ").replace(/[|–—,:;&-]+$/, "").trim();
+  };
   for (const ending of endings) {
-    const room = 60 - ending.length - 3;
-    const lead = entity.slice(0, Math.max(1, room)).trim().replace(/[|–—,:;-]+$/, "");
-    const value = `${lead} — ${ending}`;
+    const sep = ending ? (ending.startsWith("|") ? " " : " — ") : "";
+    const lead = trimWords(subject, 60 - ending.length - sep.length);
+    if (!lead) continue;
+    const value = `${lead}${sep}${ending}`.trim();
     if (value.length >= 50 && value.length <= 60) return value;
   }
-  const base = `${entity} — Details, Features & Information | ${brand}`;
-  return base.length > 60 ? base.slice(0, 60).replace(/[|–—,:;-]+$/, "") : base.padEnd(50, " ").trimEnd();
+  return trimWords(`${subject} | ${brand}`, 60) || subject.slice(0, 60);
 }
 
 /** Real sentences from the cleaned page body, longest-first prose only (no label dumps). */
