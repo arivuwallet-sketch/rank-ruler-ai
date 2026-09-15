@@ -1145,8 +1145,12 @@ function CommandCenter({ l3, g }: { l3: Level3Output; g: GenerativeOutput }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="text-lg font-semibold">Multi-variant testing</h4>
+                <span className="mt-1 inline-block rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-500 uppercase">
+                  Simulated example — not based on real visitor data
+                </span>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Five title/description variants with simulated live traffic distribution.
+                  Five title and description variants. Traffic is weighted toward the variant with the highest modelled
+                  click-through rate, exactly as a live test would allocate it.
                 </p>
               </div>
               <button
