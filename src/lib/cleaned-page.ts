@@ -389,16 +389,17 @@ export function extractPageContent(html: string, url: string, brandFallback: str
   const paragraphs: string[] = [];
   for (const m of body.matchAll(/<(p|li|dd|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
     const t = strip(m[2] ?? "");
-    if (t.split(/\s+/).length >= 6 && keepLine(t)) paragraphs.push(t);
+    if (t.split(/\s+/).length >= 6 && keepLine(t) && !isDataDump(t)) paragraphs.push(t);
   }
   if (paragraphs.length === 0) {
     const flat = strip(body)
       .split(/(?<=[.!?])\s+/)
-      .filter((s) => s.split(/\s+/).length >= 6 && keepLine(s));
+      .filter((s) => s.split(/\s+/).length >= 6 && keepLine(s) && !isDataDump(s));
     paragraphs.push(...flat.slice(0, 40));
   }
 
   const tables = parseTables(body);
+  const faqPairs = extractFaqPairs(body);
 
   // specs from tables / definition lists / "Label: value" lines
   const specs: { label: string; value: string }[] = [];
