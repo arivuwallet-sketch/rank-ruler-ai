@@ -7,9 +7,22 @@ export type RangeKey = "live" | "today" | "7d" | "30d" | "90d" | "ytd" | "custom
 export type Point = { label: string; users: number; clicks: number; revenue: number };
 export type Row = Record<string, string | number>;
 
+export type BusinessModel =
+  | "ecommerce"
+  | "subscription"
+  | "marketplace"
+  | "leadgen"
+  | "content"
+  | "unknown";
+
 export type AnalyticsData = {
   host: string;
   range: RangeKey;
+  /** True whenever no real analytics source is connected — every value is sample data. */
+  sample: boolean;
+  businessModel: BusinessModel;
+  /** Which metric groups fit the detected model. Nothing else is invented. */
+  metricGroups: { commerce: boolean; leads: boolean; subscription: boolean };
   live: { users: number; pages: { path: string; users: number }[]; pins: { city: string; country: string; users: number; x: number; y: number }[]; feed: string[] };
   kpis: { label: string; value: string; raw: number; delta: number; spark: number[] }[];
   series: Point[];
@@ -62,18 +75,27 @@ function share(values: number[]): number[] {
   return values.map((v) => Math.round((v / total) * 1000) / 10);
 }
 
-export function buildAnalytics(finalUrl: string, range: RangeKey, primary: string, tick = 0, customDays?: number): AnalyticsData {
+export function buildAnalytics(
+  finalUrl: string,
+  range: RangeKey,
+  primary: string,
+  tick = 0,
+  customDays?: number,
+  opts: { businessModel?: BusinessModel; sitePaths?: string[] } = {},
+): AnalyticsData {
   const url = new URL(finalUrl);
   const host = url.hostname.replace(/^www\./, "");
   const days = range === "custom" && customDays ? customDays : RANGE_DAYS[range];
   const rnd = seeded(host + range + days);
   const scale = days === 1 ? 1 : days;
   const base = 240 + Math.round(rnd() * 900);
+  const businessModel: BusinessModel = opts.businessModel ?? "unknown";
+  // Only paths the scan actually found on the real site may be displayed.
+  const paths = (opts.sitePaths?.length ? opts.sitePaths : ["/"]).slice(0, 6);
 
   // ---- Live ----
   const liveRnd = seeded(host + tick);
   const liveUsers = Math.max(3, Math.round(base * 0.06 + liveRnd() * base * 0.05));
-  const paths = ["/", "/pricing", "/blog/" + primary.replace(/\s+/g, "-"), "/features", "/contact", "/checkout"];
   const livePages = paths.slice(0, 5).map((p) => ({ path: p, users: Math.max(1, Math.round(liveUsers * (0.1 + liveRnd() * 0.35))) }));
   const cities = [
     ["New York", "United States", 24, 36],
@@ -88,11 +110,11 @@ export function buildAnalytics(finalUrl: string, range: RangeKey, primary: strin
   const pins = cities.map(([city, country, x, y]) => ({ city, country, users: Math.max(1, Math.round(liveRnd() * liveUsers * 0.4)), x, y }));
   const feed = [
     `New session from ${pins[0]!.city} → ${paths[0]}`,
-    `Organic click on "${primary}" → ${paths[2]}`,
-    `Scroll depth 75% on ${paths[1]}`,
-    `Add to cart · ${paths[5]}`,
+    `Organic click on "${primary}" → ${paths[Math.min(1, paths.length - 1)]}`,
+    `Scroll depth 75% on ${paths[Math.min(2, paths.length - 1)]}`,
+    ...(businessModel === "ecommerce" ? [`Add to cart · ${paths[Math.min(3, paths.length - 1)]}`] : []),
     `Returning visitor from ${pins[3]!.city}`,
-    `Referral from google.com → ${paths[3]}`,
+    `Referral from google.com → ${paths[Math.min(4, paths.length - 1)]}`,
   ];
 
   // ---- Time series ----
@@ -182,13 +204,36 @@ export function buildAnalytics(finalUrl: string, range: RangeKey, primary: strin
   };
 
   const funnelStart = sessions;
-  const funnel = [
-    { step: "Landing view", users: funnelStart },
-    { step: "Product / offer view", users: Math.round(funnelStart * 0.52) },
-    { step: "Add to cart", users: Math.round(funnelStart * 0.19) },
-    { step: "Checkout started", users: Math.round(funnelStart * 0.08) },
-    { step: "Purchase", users: orders },
-  ];
+  const commerce = businessModel === "ecommerce" || businessModel === "marketplace";
+  const subscription = businessModel === "subscription";
+  const leads = businessModel === "leadgen" || businessModel === "content";
+  const funnel = commerce
+    ? [
+        { step: "Landing view", users: funnelStart },
+        { step: "Product / offer view", users: Math.round(funnelStart * 0.52) },
+        { step: "Add to cart", users: Math.round(funnelStart * 0.19) },
+        { step: "Checkout started", users: Math.round(funnelStart * 0.08) },
+        { step: "Purchase", users: orders },
+      ]
+    : subscription
+      ? [
+          { step: "Landing view", users: funnelStart },
+          { step: "Pricing / plans view", users: Math.round(funnelStart * 0.44) },
+          { step: "Signup started", users: Math.round(funnelStart * 0.12) },
+          { step: "Trial started", users: orders },
+        ]
+      : leads
+        ? [
+            { step: "Landing view", users: funnelStart },
+            { step: "Key content read", users: Math.round(funnelStart * 0.48) },
+            { step: "Form viewed", users: Math.round(funnelStart * 0.14) },
+            { step: "Form submitted", users: Math.round(funnelStart * 0.04) },
+          ]
+        : [
+            { step: "Landing view", users: funnelStart },
+            { step: "Engaged session", users: Math.round(funnelStart * 0.46) },
+            { step: "Second page viewed", users: Math.round(funnelStart * 0.22) },
+          ];
   const scroll = [
     { depth: "25%", share: 92 },
     { depth: "50%", share: Math.round(64 + rnd() * 10) },
@@ -232,22 +277,37 @@ export function buildAnalytics(finalUrl: string, range: RangeKey, primary: strin
       "Avg. position": Math.round((2 + i * 1.5 + rnd() * 3) * 10) / 10,
     };
   });
-  const products: Row[] = ["Starter plan", "Pro plan", "Enterprise plan", "Annual bundle", "Add-on: audits"].map((name, i) => {
-    const qty = Math.max(1, Math.round(orders * (0.34 / (i + 1)) * (0.7 + rnd() * 0.7)));
-    const rev = Math.round(qty * aov * (0.6 + rnd() * 1.4));
-    return { Product: name, SKU: `SKU-${1000 + i * 7}`, Units: qty, Revenue: `$${rev.toLocaleString()}`, "Rev. share": `${((rev / revenue) * 100).toFixed(1)}%` };
-  });
+  // Product/plan rows are only meaningful for commerce or subscription sites, and
+  // named catalogue items are never invented — rows key off real scanned paths.
+  const products: Row[] =
+    commerce || subscription
+      ? paths.slice(0, 5).map((path, i) => {
+          const qty = Math.max(1, Math.round(orders * (0.34 / (i + 1)) * (0.7 + rnd() * 0.7)));
+          const rev = Math.round(qty * aov * (0.6 + rnd() * 1.4));
+          return {
+            Page: path,
+            Units: qty,
+            Revenue: `$${rev.toLocaleString()}`,
+            "Rev. share": `${((rev / revenue) * 100).toFixed(1)}%`,
+          };
+        })
+      : [];
 
   const sources = [
     { connected: false, name: "Google Analytics 4 Data API", detail: "OAuth 2.0 / service account — connect to stream real users, acquisition and demographics." },
     { connected: false, name: "Google Search Console API", detail: "Connect to pull live clicks, impressions, CTR and average position." },
-    { connected: false, name: "Shopify / WooCommerce / Stripe", detail: "Connect a store to stream orders, revenue and funnel drop-off." },
-    { connected: false, name: "Live socket stream", detail: "Realtime active-user socket — running in simulation until a property is connected." },
+    ...(commerce || subscription
+      ? [{ connected: false, name: "Shopify / WooCommerce / Stripe", detail: "Connect a store to stream orders, revenue and funnel drop-off." }]
+      : []),
+    { connected: false, name: "Live visitor stream", detail: "Realtime active-user socket — not connected, so live numbers are sample data." },
   ];
 
   return {
     host,
     range,
+    sample: sources.every((s) => !s.connected),
+    businessModel,
+    metricGroups: { commerce, leads, subscription },
     live: { users: liveUsers, pages: livePages, pins, feed },
     kpis,
     series,

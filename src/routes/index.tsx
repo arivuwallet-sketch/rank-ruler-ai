@@ -455,7 +455,27 @@ function Report({
             What the agent understood before writing anything — menus, buttons, carts and prices
             were stripped out first.
           </p>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl bg-secondary/60 p-4">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">Brand name</span>
+              <p className="mt-1 text-sm font-medium">{result.cleanedPage.brandName}</p>
+            </div>
+            <div className="rounded-xl bg-secondary/60 p-4">
+              <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                Page type · {result.cleanedPage.pageType}
+              </span>
+              <p className="mt-1 text-sm font-medium">{result.cleanedPage.typeReason}</p>
+            </div>
+            {result.cleanedPage.heroTagline ? (
+              <div className="rounded-xl bg-secondary/60 p-4 md:col-span-2">
+                <span className="text-xs tracking-wide text-muted-foreground uppercase">
+                  Hero tagline (kept separate — never used as a keyword or brand)
+                </span>
+                <p className="mt-1 text-sm font-medium">{result.cleanedPage.heroTagline}</p>
+              </div>
+            ) : null}
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
             <div className="rounded-xl bg-secondary/60 p-4">
               <span className="text-xs tracking-wide text-muted-foreground uppercase">
                 What this page offers
@@ -506,6 +526,26 @@ function Report({
                   </ul>
                 </div>
               )}
+            </div>
+          )}
+          {result.validationRejections.length > 0 && (
+            <div className="mt-5 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
+              <p className="text-sm font-semibold text-amber-500">
+                {result.validationRejections.length} draft{result.validationRejections.length === 1 ? "" : "s"} rejected
+                before publishing
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Anything that was cut off mid-sentence, could not be traced back to this page, or read as generic filler was
+                removed instead of shown to you.
+              </p>
+              <ul className="mt-3 space-y-2 text-sm">
+                {result.validationRejections.slice(0, 8).map((r, i) => (
+                  <li key={`${r.field}-${i}`} className="rounded-lg bg-background/40 p-3">
+                    <span className="font-mono text-xs text-muted-foreground">{r.field}</span> · {r.reason}
+                    {r.value ? <p className="mt-1 text-xs text-muted-foreground italic">“{r.value.slice(0, 160)}”</p> : null}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
@@ -663,6 +703,7 @@ function Report({
               brandName={brandName}
               location={location}
               business={result.pageContext.business}
+              localBusiness={result.localBusiness}
               primary={result.pageContext.primaryKeyword}
               secondary={result.pageContext.secondaryKeyword ?? ""}
               keywords={
@@ -675,6 +716,8 @@ function Report({
             <AnalyticsStudio
               finalUrl={result.finalUrl}
               primary={result.pageContext.primaryKeyword}
+              businessModel={result.businessModel}
+              sitePaths={result.sitePaths}
             />
           </>
         )}
@@ -1143,8 +1186,12 @@ function CommandCenter({ l3, g }: { l3: Level3Output; g: GenerativeOutput }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="text-lg font-semibold">Multi-variant testing</h4>
+                <span className="mt-1 inline-block rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-500 uppercase">
+                  Simulated example — not based on real visitor data
+                </span>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Five title/description variants with simulated live traffic distribution.
+                  Five title and description variants. Traffic is weighted toward the variant with the highest modelled
+                  click-through rate, exactly as a live test would allocate it.
                 </p>
               </div>
               <button

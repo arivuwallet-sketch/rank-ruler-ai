@@ -165,17 +165,29 @@ ${directives}
     [mkTitle(`${kw} Explained by ${brandName} Experts`), `Straight answers on ${primary}: what it is, why it matters, how to start. Verified data and expert review inside — read in 5 minutes.`],
     [mkTitle(`How ${brandName} Does ${kw} Differently`), `The ${primary} playbook ${brandName} uses internally: measurable steps, honest benchmarks and zero fluff. Steal the exact process here.`],
   ] as const;
-  let remaining = 100;
-  const mvt_variants = variants.map(([title, description], i) => {
-    const share = i === variants.length - 1 ? remaining : Math.max(5, Math.round(rnd() * 30));
-    remaining -= share;
-    return {
-      title,
-      description: description.slice(0, 155),
-      trafficShare: share,
-      ctrDelta: `${(rnd() * 2.4 - 0.6).toFixed(1)}%`,
-    };
-  });
+  // A real multi-variant test shifts traffic toward the winner, so the best CTR
+  // variant must receive the largest allocation. This panel is a simulated
+  // example: the UI must state it is not based on real visitor data.
+  const scored = variants.map(([title, description]) => ({
+    title,
+    description: description.slice(0, 155),
+    ctr: Math.round((rnd() * 2.4 - 0.6) * 10) / 10,
+  }));
+  const ranked = [...scored].sort((a, b) => b.ctr - a.ctr);
+  const weights = [46, 24, 14, 9, 7].slice(0, ranked.length);
+  const weightTotal = weights.reduce((a, b) => a + b, 0);
+  const shares = weights.map((w, i) =>
+    i === weights.length - 1
+      ? 100 - weights.slice(0, -1).reduce((a, b) => a + Math.round((b / weightTotal) * 100), 0)
+      : Math.round((w / weightTotal) * 100),
+  );
+  const shareByTitle = new Map(ranked.map((v, i) => [v.title, shares[i]!]));
+  const mvt_variants = scored.map((v) => ({
+    title: v.title,
+    description: v.description,
+    trafficShare: shareByTitle.get(v.title) ?? 0,
+    ctrDelta: `${v.ctr > 0 ? "+" : ""}${v.ctr.toFixed(1)}%`,
+  }));
 
   // ---- Self-healing sentinel (simulated GSC decay) ----
   const sentinelPaths = ["", "blog", `blog/${primary.replace(/\s+/g, "-")}`, "pricing", "features", "docs"];

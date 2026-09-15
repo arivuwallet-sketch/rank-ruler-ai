@@ -4,7 +4,7 @@ import { buildGenerative, type GenerativeOutput } from "./generative";
 import { buildLevel3, type Level3Output } from "./level3";
 import { detectPageType } from "./generative";
 import { extractMainText, isBoilerplateTerm, synthesizeContext, type PageContext } from "./semantic";
-import type { CleanedPage, GeneratedLayers, QuerySignals } from "./cleaned-page";
+import type { ArtifactRejection, CleanedPage, GeneratedLayers, QuerySignals } from "./cleaned-page";
 
 export type { GenerativeOutput } from "./generative";
 export type { Level3Output } from "./level3";
@@ -76,7 +76,23 @@ export type AuditResult = {
   generated: GeneratedLayers | null;
   querySignals: QuerySignals;
   contentError: string | null;
+  /** Phase 4 — real business model detected from page signals. */
+  businessModel: BusinessModel;
+  /** Phase 3/4 — only paths that actually exist on the scanned site. */
+  sitePaths: string[];
+  /** Phase 8 — is this genuinely a local / multi-location business? */
+  localBusiness: boolean;
+  /** Phase 9 — every artifact rejected before publish, with the failing check. */
+  validationRejections: ArtifactRejection[];
 };
+
+export type BusinessModel =
+  | "ecommerce"
+  | "subscription"
+  | "marketplace"
+  | "leadgen"
+  | "content"
+  | "unknown";
 
 
 
@@ -222,6 +238,7 @@ export const auditSite = createServerFn({ method: "POST" })
     let internalLinks = 0;
     let externalLinks = 0;
     let nofollowExternal = 0;
+    const sitePathSet = new Set<string>();
     for (const a of anchors) {
       const href = attr(a, "href");
       if (!href || href.startsWith("#") || /^(mailto|tel|javascript):/i.test(href)) continue;
@@ -231,12 +248,31 @@ export const auditSite = createServerFn({ method: "POST" })
       } catch {
         continue;
       }
-      if (abs.origin === origin) internalLinks++;
-      else {
+      if (abs.origin === origin) {
+        internalLinks++;
+        sitePathSet.add(abs.pathname.replace(/\/+$/, "") || "/");
+      } else {
         externalLinks++;
         if (/rel=["'][^"']*nofollow/i.test(a)) nofollowExternal++;
       }
     }
+    // Only paths that genuinely exist on the scanned site may ever be displayed.
+    const sitePaths = [...sitePathSet].slice(0, 40);
+
+    // Phase 4 — classify the real business model from actual page signals.
+    const businessModel: BusinessModel = (() => {
+      const has = (re: RegExp) => re.test(html);
+      if (has(/\/(cart|checkout|basket)\b/i) || has(/add to (cart|bag)/i) || has(/"@type"\s*:\s*"Product"/i))
+        return "ecommerce";
+      if (has(/\/(pricing|plans|subscribe)\b/i) && has(/\b(per month|\/mo|monthly|annually|billed)\b/i))
+        return "subscription";
+      if (has(/\b(vendors?|sellers?|marketplace|list your)\b/i) && has(/\/(sellers?|vendors?|stores?)\b/i))
+        return "marketplace";
+      if (has(/<form\b[\s\S]{0,600}?(email|phone|message|enquiry|inquiry)/i) || has(/request a (demo|quote|callback)/i))
+        return "leadgen";
+      if (sitePaths.filter((p) => /\/(blog|news|articles?|posts?|guides?)\b/.test(p)).length >= 2) return "content";
+      return "unknown";
+    })();
 
     const jsonLdTypes: string[] = [];
     for (const m of html.matchAll(
@@ -1098,17 +1134,24 @@ export const auditSite = createServerFn({ method: "POST" })
     // prevents navigation terms or the earlier frequency heuristic leaking into
     // the report when the cleaner has identified a more specific entity.
     if (!cleanContentError(cleanedPage)) {
-      pageContext.business = `${cleanedPage.brand} — ${(
-        cleanedPage.entityDescription.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) ||
+      // Purpose comes from real body content — never the hero headline alone.
+      pageContext.business = `${cleanedPage.brandName} — ${(
+        cleanedPage.pagePurpose.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) ||
         cleanedPage.primaryEntity
       ).replace(/[.\s]+$/, "")}.`;
       pageContext.intent = cleanedPage.searchIntent;
-      pageContext.primaryKeyword = cleanedPage.primaryEntity.toLowerCase();
+      pageContext.primaryKeyword = cleanedPage.primaryKeyword;
       pageContext.secondaryKeyword =
         cleanedPage.specs[0]?.value.toLowerCase().slice(0, 80) ?? "";
+      
       pageContext.evidence = [
         `Page entity: "${cleanedPage.primaryEntity}"`,
+        cleanedPage.typeReason,
+        ...(cleanedPage.heroTagline ? [`Hero tagline (context only): "${cleanedPage.heroTagline}"`] : []),
         `Cleaned copy: ${cleanedPage.wordCountAfterCleaning} words analysed`,
+        ...(cleanedPage.tables.length
+          ? [`${cleanedPage.tables.length} data table(s) parsed as labelled rows and columns`]
+          : []),
         ...cleanedPage.specs.slice(0, 3).map((spec) => `${spec.label}: ${spec.value}`),
       ];
     }
@@ -1130,10 +1173,26 @@ export const auditSite = createServerFn({ method: "POST" })
           data.location?.trim() || undefined,
         );
       } catch (err) {
+        // The AI writer is unavailable (commonly out of credits) — log the reason
+        // so the fallback path is debuggable, then use page-grounded generation.
+        console.warn(
+          `[content-pipeline] AI writer unavailable, using page-grounded fallback: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
         const { buildGroundedLayers } = await import("./cleaned-page");
         generated = buildGroundedLayers(cleanedPage, finalUrl, data.location?.trim() || undefined);
         contentError = null;
       }
+    }
+
+    // ---- Phase 9: one pre-publish validation pass over every artifact ----
+    let validationRejections: ArtifactRejection[] = [];
+    if (generated) {
+      const { validateArtifacts } = await import("./cleaned-page");
+      const checked = validateArtifacts(generated, cleanedPage);
+      generated = checked.sanitized;
+      validationRejections = checked.rejections;
     }
 
     // Every content panel reads from the generated object — never raw scraped text.
@@ -1247,5 +1306,11 @@ export const auditSite = createServerFn({ method: "POST" })
       generated,
       querySignals,
       contentError,
+      businessModel,
+      sitePaths,
+      localBusiness:
+        /"@type"\s*:\s*"LocalBusiness"/i.test(html) ||
+        sitePaths.some((p) => /\/(locations?|branches?|stores?|find-us|our-offices)\b/.test(p)),
+      validationRejections,
     };
   });

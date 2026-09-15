@@ -10,7 +10,7 @@ import {
   ShoppingCart,
   Users,
 } from "lucide-react";
-import { buildAnalytics, comparePrevious, daysBetween, toCsv, type AnalyticsData, type RangeKey, type Row } from "@/lib/analytics";
+import { buildAnalytics, comparePrevious, daysBetween, toCsv, type AnalyticsData, type BusinessModel, type RangeKey, type Row } from "@/lib/analytics";
 
 const RANGES: { key: RangeKey; label: string }[] = [
   { key: "live", label: "Live" },
@@ -287,16 +287,38 @@ function DataTable({ title, rows, filename }: { title: string; rows: Row[]; file
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, sample }: { label: string; value: string; sample?: boolean }) {
   return (
     <div className="rounded-xl border border-border bg-background/40 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
+      {sample ? <SampleTag /> : null}
     </div>
   );
 }
 
-export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: string; primary: string }) {
+/** Persistent, unmissable label on any value that is not measured from a live source. */
+function SampleTag({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`mt-1 inline-block rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-500 uppercase ${className}`}
+    >
+      Sample data
+    </span>
+  );
+}
+
+export default function AnalyticsStudio({
+  finalUrl,
+  primary,
+  businessModel = "unknown",
+  sitePaths = [],
+}: {
+  finalUrl: string;
+  primary: string;
+  businessModel?: BusinessModel;
+  sitePaths?: string[];
+}) {
   const [range, setRange] = useState<RangeKey>("7d");
   const [compareOn, setCompareOn] = useState(false);
   const [tick, setTick] = useState(0);
@@ -310,14 +332,34 @@ export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: strin
   }, []);
 
   const data = useMemo(
-    () => buildAnalytics(finalUrl, range, primary, tick, customDays),
-    [finalUrl, range, primary, tick, customDays],
+    () => buildAnalytics(finalUrl, range, primary, tick, customDays, { businessModel, sitePaths }),
+    [finalUrl, range, primary, tick, customDays, businessModel, sitePaths],
   );
   const prev = useMemo(() => (compareOn ? comparePrevious(data) : null), [compareOn, data]);
   const feed = data.live.feed.slice(tick % data.live.feed.length).concat(data.live.feed.slice(0, tick % data.live.feed.length));
 
+  const MODEL_LABEL: Record<BusinessModel, string> = {
+    ecommerce: "Online store (cart / checkout found)",
+    subscription: "Subscription product (pricing and billing found)",
+    marketplace: "Marketplace (vendor / seller signals found)",
+    leadgen: "Lead generation (enquiry form found)",
+    content: "Content publisher (article sections found)",
+    unknown: "Not determined — showing traffic, engagement and search only",
+  };
+
   return (
     <section className="space-y-6">
+      {data.sample ? (
+        <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
+          <p className="text-sm font-semibold text-amber-500">
+            No analytics source is connected — every number below is sample data
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Connect Google Analytics or Search Console to replace these figures with your real measured visitors, clicks and
+            revenue. Business model detected from the scan: {MODEL_LABEL[data.businessModel]}.
+          </p>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h3 className="font-display text-2xl font-bold">Omnipotent Analytics Studio</h3>
@@ -479,20 +521,32 @@ export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: strin
         </Card>
       </div>
 
-      <Card title="E-commerce & financial metrics" icon={<ShoppingCart className="size-4" />}>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="Total revenue" value={`$${data.ecommerce.revenue.toLocaleString()}`} />
-          <Stat label="Orders" value={data.ecommerce.orders.toLocaleString()} />
-          <Stat label="Conversion rate" value={`${data.ecommerce.conversionRate}%`} />
-          <Stat label="Average order value" value={`$${data.ecommerce.aov}`} />
-          <Stat label="Customer lifetime value" value={`$${data.ecommerce.clv}`} />
-          <Stat label="Revenue per user" value={`$${data.ecommerce.revenuePerUser}`} />
-          <Stat label="Cart abandonment" value={`${data.ecommerce.cartAbandonment}%`} />
-          <Stat label="Range" value={RANGES.find((r) => r.key === range)!.label} />
-        </div>
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+      {data.metricGroups.commerce || data.metricGroups.subscription ? (
+        <Card
+          title={data.metricGroups.commerce ? "E-commerce & financial metrics" : "Subscription & revenue metrics"}
+          icon={<ShoppingCart className="size-4" />}
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Stat label="Total revenue" value={`$${data.ecommerce.revenue.toLocaleString()}`} sample={data.sample} />
+            <Stat label={data.metricGroups.commerce ? "Orders" : "New subscriptions"} value={data.ecommerce.orders.toLocaleString()} sample={data.sample} />
+            <Stat label="Conversion rate" value={`${data.ecommerce.conversionRate}%`} sample={data.sample} />
+            <Stat label={data.metricGroups.commerce ? "Average order value" : "Average plan value"} value={`$${data.ecommerce.aov}`} sample={data.sample} />
+            <Stat label="Customer lifetime value" value={`$${data.ecommerce.clv}`} sample={data.sample} />
+            <Stat label="Revenue per user" value={`$${data.ecommerce.revenuePerUser}`} sample={data.sample} />
+            {data.metricGroups.commerce ? (
+              <Stat label="Cart abandonment" value={`${data.ecommerce.cartAbandonment}%`} sample={data.sample} />
+            ) : null}
+            <Stat label="Range" value={RANGES.find((r) => r.key === range)!.label} />
+          </div>
+        </Card>
+      ) : null}
+
+      <Card title="Conversion path & reading depth">
+        <div className="grid gap-5 lg:grid-cols-2">
+
           <div>
             <p className="text-xs tracking-wide text-muted-foreground uppercase">Conversion funnel</p>
+            {data.sample ? <SampleTag /> : null}
             <ul className="mt-3 space-y-2">
               {data.funnel.map((f, i) => {
                 const pct = (f.users / data.funnel[0]!.users) * 100;
@@ -551,7 +605,9 @@ export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: strin
 
       <DataTable title="Top keywords" rows={data.keywords} filename={`${data.host}-keywords`} />
       <DataTable title="Top landing pages" rows={data.pages} filename={`${data.host}-pages`} />
-      <DataTable title="Top selling products" rows={data.products} filename={`${data.host}-products`} />
+      {data.products.length ? (
+        <DataTable title="Revenue by scanned page" rows={data.products} filename={`${data.host}-revenue-by-page`} />
+      ) : null}
 
       <Card title="Data sources" icon={<Plug className="size-4" />}>
         <ul className="grid gap-3 md:grid-cols-2">
@@ -559,8 +615,14 @@ export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: strin
             <li key={s.name} className="rounded-xl border border-border bg-background/40 p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold">{s.name}</p>
-                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                  {s.connected ? "Connected" : "Simulated"}
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-xs ${
+                    s.connected
+                      ? "border-mint/50 text-mint"
+                      : "border-amber-500/50 bg-amber-500/10 text-amber-500"
+                  }`}
+                >
+                  {s.connected ? "Connected" : "Not connected"}
                 </span>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{s.detail}</p>

@@ -98,6 +98,7 @@ export default function GrowthEngines({
   primary,
   secondary,
   keywords,
+  localBusiness = false,
 }: {
   finalUrl: string;
   brandName: string;
@@ -106,6 +107,7 @@ export default function GrowthEngines({
   primary: string;
   secondary: string;
   keywords: string[];
+  localBusiness?: boolean;
 }) {
   const [tab, setTab] = useState<TabKey>("offpage");
   const g: GrowthOutput = useMemo(
@@ -148,7 +150,7 @@ export default function GrowthEngines({
       <div className="mt-6 space-y-5">
         {tab === "offpage" && <OffPage g={g} finalUrl={finalUrl} />}
         {tab === "leads" && <Leads g={g} primary={primary} />}
-        {tab === "scale" && <Scaling g={g} />}
+        {tab === "scale" && <Scaling g={g} localBusiness={localBusiness} />}
       </div>
     </div>
   );
@@ -546,12 +548,47 @@ function Leads({ g, primary }: { g: GrowthOutput; primary: string }) {
 
 /* ---------------------------------- scaling ---------------------------------- */
 
-function Scaling({ g }: { g: GrowthOutput }) {
+function Scaling({ g, localBusiness }: { g: GrowthOutput; localBusiness: boolean }) {
+  // Location pages are only legitimate for genuine local / multi-location
+  // businesses, and never generated silently: the user must switch them on
+  // after reading the warning.
+  const [pseoOn, setPseoOn] = useState(false);
   return (
     <>
+      <SectionCard title="Location pages" hint="Only appropriate for businesses that genuinely serve multiple named places.">
+        {localBusiness ? (
+          <p className="text-sm text-muted-foreground">
+            The scan found local-business signals on this site (a locations page or local business markup), so city pages can
+            be a legitimate fit.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            The scan found no locations page, city service pages or local business markup on this site. Publishing city pages
+            here would create near-duplicate pages about places you do not actually serve, which search engines treat as spam.
+          </p>
+        )}
+        <div className="mt-4 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
+          <p className="text-sm font-semibold text-amber-500">Read before enabling</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Each page below must be given genuinely unique, substantive content — real local addresses, staff, service areas,
+            prices or customer stories — before you publish it. Swapping only the city name creates doorway pages and can get
+            the whole site demoted.
+          </p>
+          <button
+            type="button"
+            onClick={() => setPseoOn((v) => !v)}
+            className={`mt-3 rounded-lg border px-3 py-1.5 text-sm font-semibold ${
+              pseoOn ? "border-mint text-mint" : "border-amber-500/60 text-amber-500"
+            }`}
+          >
+            {pseoOn ? "Hide location page drafts" : "I understand — show location page drafts"}
+          </button>
+        </div>
+      </SectionCard>
+      {pseoOn ? (
       <SectionCard
-        title="Programmatic pages"
-        hint="Location pages built from brand + city + keyword, each with its own title, heading and description."
+        title="Programmatic page drafts"
+        hint="Starting points only — replace the shared wording with unique local detail before publishing."
         right={
           <Copyable
             value={g.pseo.map((p) => `${p.slug}\n${p.title}\n${p.description}`).join("\n\n")}
@@ -583,6 +620,9 @@ function Scaling({ g }: { g: GrowthOutput }) {
           </table>
         </div>
       </SectionCard>
+      ) : null}
+
+
 
       <SectionCard
         title="Languages & hreflang"
