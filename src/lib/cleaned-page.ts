@@ -688,7 +688,7 @@ export function validateArtifacts(
 
   const sanitized: GeneratedLayers = {
     ...g,
-    titleTag: check("titleTag", g.titleTag, true, fitTitle(subject, page.brandName)),
+    titleTag: check("titleTag", g.titleTag, true, fitTitle(subject, page.brandName, page.primaryKeyword)),
     metaDescription: check("metaDescription", g.metaDescription, true, purpose || fitDescription(page)),
     h1: check("h1", g.h1, false, subject),
     directAnswerCapsule: check("directAnswerCapsule", g.directAnswerCapsule, true, fitCapsule(page)),
@@ -718,8 +718,18 @@ function sentence(value: string, max = 34): string {
 }
 
 /** Word-safe title within 50-60 chars — the subject is never cut mid-word. */
-function fitTitle(entity: string, brand: string): string {
+function fitTitle(entity: string, brand: string, keyword = ""): string {
   const subject = entity.replace(/\s+/g, " ").trim();
+  // When the page subject IS the brand, the descriptive keyword carries the title
+  // instead of repeating the brand twice ("DeepScreen | DeepScreen").
+  if (subject.toLowerCase() === brand.toLowerCase() && keyword) {
+    const kw = keyword.replace(/\s+/g, " ").trim().replace(/^./, (c) => c.toUpperCase());
+    for (const value of [`${brand} — ${kw}`, `${brand} — ${kw} Details`, `${kw} | ${brand}`]) {
+      if (value.length >= 45 && value.length <= 60) return value;
+    }
+    const short = `${brand} — ${kw}`;
+    if (short.length <= 60) return short;
+  }
   const endings = [
     `Features & Details | ${brand}`,
     `Information & Details | ${brand}`,
@@ -779,7 +789,15 @@ function proseWithin(sentences: string[], minWords: number, maxWords: number): s
 
 /** Whole sentences only, packed as close to 155 chars as they fit — never a fragment. */
 function fitDescription(page: CleanedPage): string {
-  const pool = proseSentences(page).map((s) => (/[.!?]$/.test(s) ? s : `${s}.`));
+  const subjectWord = (page.primaryEntity || page.brandName).split(/\s+/)[0]?.toLowerCase() ?? "";
+  const pool = proseSentences(page)
+    .map((s) => (/[.!?]$/.test(s) ? s : `${s}.`))
+    .sort((a, b) => {
+      const rank = (t: string) =>
+        (/^(it|this|that|they|these|those|there|here)\b/i.test(t) ? 2 : 0) +
+        (subjectWord && t.toLowerCase().includes(subjectWord) ? 0 : 1);
+      return rank(a) - rank(b);
+    });
   const candidates = pool.length ? pool : [sentence(page.entityDescription, 26)].filter(Boolean);
   let value = "";
   for (const s of candidates) {
@@ -875,7 +893,7 @@ export function buildGroundedLayers(page: CleanedPage, pageUrl: string, targetLo
     ...page.entityDescription.split(/(?<=[.!?])\s+/).filter((s) => /\d/.test(s) && !looksRunTogether(s)),
   ].slice(0, 6);
   return {
-    titleTag: fitTitle(entity, brand),
+    titleTag: fitTitle(entity, brand, page.primaryKeyword),
     metaDescription: fitDescription(page),
     h1: entity,
     urlSlug: slug,
