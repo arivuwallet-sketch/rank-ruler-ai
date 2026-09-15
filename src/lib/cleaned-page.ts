@@ -464,12 +464,19 @@ export function extractPageContent(html: string, url: string, brandFallback: str
     .map((s) => (s ?? "").trim().replace(/\s*[-–—|]\s*$/, ""))
     .filter((s) => s.length > 2 && s.length < 110 && keepLine(s) && !BAD_ENTITY.test(s));
   const specific = entityCandidates.filter((s) => !GENERIC_ENTITY.test(s) && !SECTION_HEADING.test(s));
-  const primaryEntity =
-    specific[0] ??
-    entityCandidates[0] ??
-    title.split(/\s[|–—]\s/)[0]?.trim() ??
-    uniqueSpecs[0]?.label ??
-    "";
+  // On brand-level pages the subject IS the organisation, not the descriptive
+  // half of the title tag ("Global Stock Screener & Fundamental Analysis").
+  const brandIsSubject =
+    !!brandName &&
+    (pageType === "homepage" || pageType === "faq" || pageType === "pricing") &&
+    new RegExp(`\\b${brandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(`${title} ${ogTitle ?? ""}`);
+  const primaryEntity = brandIsSubject
+    ? brandName
+    : (specific[0] ??
+      entityCandidates[0] ??
+      title.split(/\s[|–—]\s/)[0]?.trim() ??
+      uniqueSpecs[0]?.label ??
+      "");
 
   const entityDescription = paragraphs.slice(0, 12).join(" ").slice(0, 4000);
   const wordCountAfterCleaning = `${headingTexts.join(" ")} ${entityDescription}`
