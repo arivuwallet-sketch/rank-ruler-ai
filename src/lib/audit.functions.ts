@@ -1143,7 +1143,7 @@ export const auditSite = createServerFn({ method: "POST" })
       pageContext.primaryKeyword = cleanedPage.primaryKeyword;
       pageContext.secondaryKeyword =
         cleanedPage.specs[0]?.value.toLowerCase().slice(0, 80) ?? "";
-      pageContext.pageType = cleanedPage.typeReason;
+      
       pageContext.evidence = [
         `Page entity: "${cleanedPage.primaryEntity}"`,
         cleanedPage.typeReason,
