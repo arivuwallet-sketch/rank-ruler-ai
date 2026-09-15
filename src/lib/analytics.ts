@@ -296,13 +296,18 @@ export function buildAnalytics(
   const sources = [
     { connected: false, name: "Google Analytics 4 Data API", detail: "OAuth 2.0 / service account — connect to stream real users, acquisition and demographics." },
     { connected: false, name: "Google Search Console API", detail: "Connect to pull live clicks, impressions, CTR and average position." },
-    { connected: false, name: "Shopify / WooCommerce / Stripe", detail: "Connect a store to stream orders, revenue and funnel drop-off." },
-    { connected: false, name: "Live socket stream", detail: "Realtime active-user socket — running in simulation until a property is connected." },
+    ...(commerce || subscription
+      ? [{ connected: false, name: "Shopify / WooCommerce / Stripe", detail: "Connect a store to stream orders, revenue and funnel drop-off." }]
+      : []),
+    { connected: false, name: "Live visitor stream", detail: "Realtime active-user socket — not connected, so live numbers are sample data." },
   ];
 
   return {
     host,
     range,
+    sample: sources.every((s) => !s.connected),
+    businessModel,
+    metricGroups: { commerce, leads, subscription },
     live: { users: liveUsers, pages: livePages, pins, feed },
     kpis,
     series,
