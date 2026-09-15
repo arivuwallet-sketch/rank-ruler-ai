@@ -25,6 +25,8 @@ export type CleanedPage = {
   entityDescription: string;
   specs: { label: string; value: string }[];
   tables: PageTable[];
+  /** Real question/answer pairs visible on the page — never invented. */
+  faqPairs: { question: string; answer: string }[];
   priceINR?: number | null;
   searchIntent: string;
   wordCountAfterCleaning: number;
