@@ -138,6 +138,9 @@ function isDataDump(line: string): boolean {
   if (!t) return true;
   const separators = (t.match(/[·•|]/g) ?? []).length;
   if (separators >= 2) return true;
+  // one separator plus digits is a stat strip / clock row, not a sentence
+  if (separators >= 1 && /\d/.test(t)) return true;
+  if (/\bLIVE\b/.test(t)) return true;
   if ((t.match(/\d{1,2}:\d{2}/g) ?? []).length >= 2) return true;
   const digits = (t.match(/\d/g) ?? []).length;
   if (digits / t.length > 0.12) return true;
@@ -161,7 +164,9 @@ function extractFaqPairs(body: string): { question: string; answer: string }[] {
     for (let j = i + 1; j < blocks.length && answerParts.length < 2; j++) {
       const a = blocks[j]!;
       if (/\?\s*$/.test(a.text) || /^h[1-6]$/.test(a.tag)) break;
-      if (words(a.text).length < 4 || isDataDump(a.text) || !keepLine(a.text)) continue;
+      // only real sentences may answer — link lists and label rows are skipped
+      if (words(a.text).length < 5 || isDataDump(a.text) || !keepLine(a.text)) continue;
+      if (!/[.!?]["')\]]?$/.test(a.text.trim())) continue;
       answerParts.push(a.text);
     }
     const answer = answerParts.join(" ").trim();
