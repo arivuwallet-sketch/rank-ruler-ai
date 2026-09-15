@@ -829,11 +829,23 @@ export function buildGroundedLayers(page: CleanedPage, pageUrl: string, targetLo
     .filter(Boolean)
     .slice(0, 3);
   const detailAnswer = proseWithin(rest, 30, 55) || tableSentences.join(" ") || capsule;
-  const faq = [
-    { question: `What is ${entity}?`, answer: capsule },
-    { question: `What details does this page provide about ${entity}?`, answer: detailAnswer || capsule },
-    { question: `Who is this ${entity} page intended for?`, answer: page.searchIntent.replace(/^[^—]+—\s*/, "") },
-  ];
+  // Real questions and answers already on the page always win. Generated entries
+  // only top the list up, and only from grounded prose — never a template about
+  // "what this page provides".
+  const realPairs = page.faqPairs.map((pair) => ({
+    question: pair.question,
+    answer: proseWithin(proseSentences(pair.answer ? { ...page, entityDescription: pair.answer, pagePurpose: "" } : page), 60) || pair.answer,
+  }));
+  const faq = [...realPairs];
+  const has = (q: string) => faq.some((item) => item.question.toLowerCase() === q.toLowerCase());
+  if (faq.length < 3 && !has(`What is ${entity}?`)) faq.push({ question: `What is ${entity}?`, answer: capsule });
+  if (faq.length < 3 && detailAnswer && detailAnswer !== capsule)
+    faq.push({ question: `How does ${entity} work?`, answer: detailAnswer });
+  if (faq.length < 3 && page.specs.length)
+    faq.push({
+      question: `What does ${entity} cover?`,
+      answer: page.specs.slice(0, 4).map((spec) => `${spec.label}: ${spec.value}`).join(". ") + ".",
+    });
   const origin = new URL(pageUrl).origin;
   const pageSchemaType =
     page.pageType === "product"
