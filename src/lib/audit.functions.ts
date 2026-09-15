@@ -1173,10 +1173,26 @@ export const auditSite = createServerFn({ method: "POST" })
           data.location?.trim() || undefined,
         );
       } catch (err) {
+        // The AI writer is unavailable (commonly out of credits) — log the reason
+        // so the fallback path is debuggable, then use page-grounded generation.
+        console.warn(
+          `[content-pipeline] AI writer unavailable, using page-grounded fallback: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
         const { buildGroundedLayers } = await import("./cleaned-page");
         generated = buildGroundedLayers(cleanedPage, finalUrl, data.location?.trim() || undefined);
         contentError = null;
       }
+    }
+
+    // ---- Phase 9: one pre-publish validation pass over every artifact ----
+    let validationRejections: ArtifactRejection[] = [];
+    if (generated) {
+      const { validateArtifacts } = await import("./cleaned-page");
+      const checked = validateArtifacts(generated, cleanedPage);
+      generated = checked.sanitized;
+      validationRejections = checked.rejections;
     }
 
     // Every content panel reads from the generated object — never raw scraped text.
