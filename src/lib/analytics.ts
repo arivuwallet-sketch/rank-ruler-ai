@@ -7,9 +7,22 @@ export type RangeKey = "live" | "today" | "7d" | "30d" | "90d" | "ytd" | "custom
 export type Point = { label: string; users: number; clicks: number; revenue: number };
 export type Row = Record<string, string | number>;
 
+export type BusinessModel =
+  | "ecommerce"
+  | "subscription"
+  | "marketplace"
+  | "leadgen"
+  | "content"
+  | "unknown";
+
 export type AnalyticsData = {
   host: string;
   range: RangeKey;
+  /** True whenever no real analytics source is connected — every value is sample data. */
+  sample: boolean;
+  businessModel: BusinessModel;
+  /** Which metric groups fit the detected model. Nothing else is invented. */
+  metricGroups: { commerce: boolean; leads: boolean; subscription: boolean };
   live: { users: number; pages: { path: string; users: number }[]; pins: { city: string; country: string; users: number; x: number; y: number }[]; feed: string[] };
   kpis: { label: string; value: string; raw: number; delta: number; spark: number[] }[];
   series: Point[];
