@@ -586,24 +586,40 @@ export function validateArtifacts(
   const corpus = pageCorpus(page);
   const rejections: ArtifactRejection[] = [];
 
-  const check = (field: string, value: string, requireFact = false): string => {
+  const failureOf = (value: string, requireFact: boolean): [string, string] | null => {
     const reasons: [string, string | null][] = [
       ["coherence", coherenceReason(value)],
       ["groundedness", groundednessReason(value, corpus)],
       ["filler", requireFact ? fillerReason(value, page) : null],
     ];
     const failed = reasons.find(([, r]) => r);
+    return failed ? [failed[0], failed[1]!] : null;
+  };
+
+  /**
+   * A failing artifact is first repaired from the page's own facts. Only when the
+   * repaired version also fails do we show the honest placeholder.
+   */
+  const check = (field: string, value: string, requireFact = false, repair?: string): string => {
+    const failed = failureOf(value, requireFact);
     if (!failed) return value;
-    rejections.push({ field, check: failed[0], reason: failed[1]!, value });
+    if (repair && repair !== value && !failureOf(repair, requireFact)) {
+      rejections.push({ field, check: failed[0], reason: `${failed[1]} — rebuilt from page facts`, value });
+      return repair;
+    }
+    rejections.push({ field, check: failed[0], reason: failed[1], value });
     return INSUFFICIENT;
   };
 
+  const subject = page.primaryEntity || page.primaryKeyword || page.brandName;
+  const purpose = sentence(page.pagePurpose || page.entityDescription, 24);
+
   const sanitized: GeneratedLayers = {
     ...g,
-    titleTag: check("titleTag", g.titleTag, true),
-    metaDescription: check("metaDescription", g.metaDescription, true),
-    h1: check("h1", g.h1),
-    directAnswerCapsule: check("directAnswerCapsule", g.directAnswerCapsule, true),
+    titleTag: check("titleTag", g.titleTag, true, fitTitle(subject, page.brandName)),
+    metaDescription: check("metaDescription", g.metaDescription, true, purpose || fitDescription(page)),
+    h1: check("h1", g.h1, false, subject),
+    directAnswerCapsule: check("directAnswerCapsule", g.directAnswerCapsule, true, fitCapsule(page)),
     faq: g.faq
       .map((item, i) => ({
         question: check(`faq[${i}].question`, item.question),
