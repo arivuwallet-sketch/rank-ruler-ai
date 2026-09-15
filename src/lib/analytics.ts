@@ -277,11 +277,21 @@ export function buildAnalytics(
       "Avg. position": Math.round((2 + i * 1.5 + rnd() * 3) * 10) / 10,
     };
   });
-  const products: Row[] = ["Starter plan", "Pro plan", "Enterprise plan", "Annual bundle", "Add-on: audits"].map((name, i) => {
-    const qty = Math.max(1, Math.round(orders * (0.34 / (i + 1)) * (0.7 + rnd() * 0.7)));
-    const rev = Math.round(qty * aov * (0.6 + rnd() * 1.4));
-    return { Product: name, SKU: `SKU-${1000 + i * 7}`, Units: qty, Revenue: `$${rev.toLocaleString()}`, "Rev. share": `${((rev / revenue) * 100).toFixed(1)}%` };
-  });
+  // Product/plan rows are only meaningful for commerce or subscription sites, and
+  // named catalogue items are never invented — rows key off real scanned paths.
+  const products: Row[] =
+    commerce || subscription
+      ? paths.slice(0, 5).map((path, i) => {
+          const qty = Math.max(1, Math.round(orders * (0.34 / (i + 1)) * (0.7 + rnd() * 0.7)));
+          const rev = Math.round(qty * aov * (0.6 + rnd() * 1.4));
+          return {
+            Page: path,
+            Units: qty,
+            Revenue: `$${rev.toLocaleString()}`,
+            "Rev. share": `${((rev / revenue) * 100).toFixed(1)}%`,
+          };
+        })
+      : [];
 
   const sources = [
     { connected: false, name: "Google Analytics 4 Data API", detail: "OAuth 2.0 / service account — connect to stream real users, acquisition and demographics." },
