@@ -287,16 +287,38 @@ function DataTable({ title, rows, filename }: { title: string; rows: Row[]; file
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, sample }: { label: string; value: string; sample?: boolean }) {
   return (
     <div className="rounded-xl border border-border bg-background/40 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
+      {sample ? <SampleTag /> : null}
     </div>
   );
 }
 
-export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: string; primary: string }) {
+/** Persistent, unmissable label on any value that is not measured from a live source. */
+function SampleTag({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`mt-1 inline-block rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-500 uppercase ${className}`}
+    >
+      Sample data
+    </span>
+  );
+}
+
+export default function AnalyticsStudio({
+  finalUrl,
+  primary,
+  businessModel = "unknown",
+  sitePaths = [],
+}: {
+  finalUrl: string;
+  primary: string;
+  businessModel?: BusinessModel;
+  sitePaths?: string[];
+}) {
   const [range, setRange] = useState<RangeKey>("7d");
   const [compareOn, setCompareOn] = useState(false);
   const [tick, setTick] = useState(0);
@@ -310,8 +332,8 @@ export default function AnalyticsStudio({ finalUrl, primary }: { finalUrl: strin
   }, []);
 
   const data = useMemo(
-    () => buildAnalytics(finalUrl, range, primary, tick, customDays),
-    [finalUrl, range, primary, tick, customDays],
+    () => buildAnalytics(finalUrl, range, primary, tick, customDays, { businessModel, sitePaths }),
+    [finalUrl, range, primary, tick, customDays, businessModel, sitePaths],
   );
   const prev = useMemo(() => (compareOn ? comparePrevious(data) : null), [compareOn, data]);
   const feed = data.live.feed.slice(tick % data.live.feed.length).concat(data.live.feed.slice(0, tick % data.live.feed.length));
