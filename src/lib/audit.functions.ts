@@ -76,7 +76,23 @@ export type AuditResult = {
   generated: GeneratedLayers | null;
   querySignals: QuerySignals;
   contentError: string | null;
+  /** Phase 4 — real business model detected from page signals. */
+  businessModel: BusinessModel;
+  /** Phase 3/4 — only paths that actually exist on the scanned site. */
+  sitePaths: string[];
+  /** Phase 8 — is this genuinely a local / multi-location business? */
+  localBusiness: boolean;
+  /** Phase 9 — every artifact rejected before publish, with the failing check. */
+  validationRejections: ArtifactRejection[];
 };
+
+export type BusinessModel =
+  | "ecommerce"
+  | "subscription"
+  | "marketplace"
+  | "leadgen"
+  | "content"
+  | "unknown";
 
 
 
