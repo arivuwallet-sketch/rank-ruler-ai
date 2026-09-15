@@ -430,10 +430,14 @@ export function extractPageContent(html: string, url: string, brandFallback: str
     .filter(Boolean).length;
 
   // Hero tagline: the first heading, only when it reads like a slogan rather than
-  // a factual subject. Stored separately and never used as brand/keyword/slug.
+  // a factual subject or an in-page section label. Stored separately and never
+  // used as brand, keyword or slug.
   const firstHeading = headingTexts[0] ?? "";
   const heroTagline =
-    firstHeading && (firstHeading !== primaryEntity || /[!]|^(the|your|we)\b/i.test(firstHeading))
+    firstHeading &&
+    firstHeading !== primaryEntity &&
+    !SECTION_HEADING.has(firstHeading.toLowerCase().replace(/[^a-z ]/g, "").trim()) &&
+    words(firstHeading).length >= 3
       ? firstHeading
       : "";
 
