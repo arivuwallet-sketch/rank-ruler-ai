@@ -510,10 +510,12 @@ export function extractPageContent(html: string, url: string, brandFallback: str
       .join(" ")
       .slice(0, 320) || (metaDescription || "").slice(0, 320);
 
+  // The keyword is what people type, so prefer the descriptive half of the title
+  // over the brand even when the brand is the page subject.
   const primaryKeyword = extractPrimaryKeyword(
     `${headingTexts.join(" ")} ${entityDescription}`,
     metaKeywords,
-    primaryEntity,
+    brandIsSubject ? (specific.find((s) => s.toLowerCase() !== brandName.toLowerCase()) ?? primaryEntity) : primaryEntity,
     brandName,
   );
 
