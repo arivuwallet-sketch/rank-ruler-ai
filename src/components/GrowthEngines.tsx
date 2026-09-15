@@ -98,6 +98,7 @@ export default function GrowthEngines({
   primary,
   secondary,
   keywords,
+  localBusiness = false,
 }: {
   finalUrl: string;
   brandName: string;
@@ -106,6 +107,7 @@ export default function GrowthEngines({
   primary: string;
   secondary: string;
   keywords: string[];
+  localBusiness?: boolean;
 }) {
   const [tab, setTab] = useState<TabKey>("offpage");
   const g: GrowthOutput = useMemo(
@@ -148,7 +150,7 @@ export default function GrowthEngines({
       <div className="mt-6 space-y-5">
         {tab === "offpage" && <OffPage g={g} finalUrl={finalUrl} />}
         {tab === "leads" && <Leads g={g} primary={primary} />}
-        {tab === "scale" && <Scaling g={g} />}
+        {tab === "scale" && <Scaling g={g} localBusiness={localBusiness} />}
       </div>
     </div>
   );

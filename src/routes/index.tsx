@@ -663,6 +663,7 @@ function Report({
               brandName={brandName}
               location={location}
               business={result.pageContext.business}
+              localBusiness={result.localBusiness}
               primary={result.pageContext.primaryKeyword}
               secondary={result.pageContext.secondaryKeyword ?? ""}
               keywords={
