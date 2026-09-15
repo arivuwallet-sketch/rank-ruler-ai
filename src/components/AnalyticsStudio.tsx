@@ -605,7 +605,9 @@ export default function AnalyticsStudio({
 
       <DataTable title="Top keywords" rows={data.keywords} filename={`${data.host}-keywords`} />
       <DataTable title="Top landing pages" rows={data.pages} filename={`${data.host}-pages`} />
-      <DataTable title="Top selling products" rows={data.products} filename={`${data.host}-products`} />
+      {data.products.length ? (
+        <DataTable title="Revenue by scanned page" rows={data.products} filename={`${data.host}-revenue-by-page`} />
+      ) : null}
 
       <Card title="Data sources" icon={<Plug className="size-4" />}>
         <ul className="grid gap-3 md:grid-cols-2">
@@ -613,8 +615,14 @@ export default function AnalyticsStudio({
             <li key={s.name} className="rounded-xl border border-border bg-background/40 p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold">{s.name}</p>
-                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                  {s.connected ? "Connected" : "Simulated"}
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-xs ${
+                    s.connected
+                      ? "border-mint/50 text-mint"
+                      : "border-amber-500/50 bg-amber-500/10 text-amber-500"
+                  }`}
+                >
+                  {s.connected ? "Connected" : "Not connected"}
                 </span>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{s.detail}</p>
