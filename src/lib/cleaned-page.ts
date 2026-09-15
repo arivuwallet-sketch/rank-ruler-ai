@@ -705,21 +705,26 @@ function proseWithin(sentences: string[], minWords: number, maxWords: number): s
   return picked.join(" ").trim();
 }
 
+/** Whole sentences only, packed as close to 155 chars as they fit — never a fragment. */
 function fitDescription(page: CleanedPage): string {
-  const sentences = proseSentences(page);
-  let value = proseWithin(sentences, 20, 26) || sentence(page.entityDescription, 26);
-  if (value.length < 140) {
-    const extra = sentences.find((s) => !value.includes(s));
-    if (extra) value = `${value} ${/[.!?]$/.test(extra) ? extra : `${extra}.`}`.trim();
+  const pool = proseSentences(page).map((s) => (/[.!?]$/.test(s) ? s : `${s}.`));
+  const candidates = pool.length ? pool : [sentence(page.entityDescription, 26)].filter(Boolean);
+  let value = "";
+  for (const s of candidates) {
+    if (s.length > 155) continue;
+    const merged = value ? `${value} ${s}` : s;
+    if (merged.length > 155) continue;
+    value = merged;
+    if (value.length >= 140) break;
   }
-  if (value.length < 140) {
-    value = `${value} ${page.brandName} sets out what ${page.primaryEntity} covers on this page.`.trim();
-  }
-  if (value.length > 155) {
-    // Trim on whole words and close the sentence — never cut mid-word.
-    const parts = value.slice(0, 155).split(" ");
-    parts.pop();
-    value = `${parts.join(" ").replace(/[ ,;:.\-–—]+$/, "")}.`;
+  if (!value) {
+    const first = candidates[0] ?? `${page.brandName}: ${page.primaryEntity}.`;
+    const out: string[] = [];
+    for (const w of first.split(" ")) {
+      if ([...out, w].join(" ").length > 152) break;
+      out.push(w);
+    }
+    value = `${out.join(" ").replace(/[ ,;:.\-–—]+$/, "")}.`;
   }
   return value;
 }
