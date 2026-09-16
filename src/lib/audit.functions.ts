@@ -1263,7 +1263,9 @@ export const auditSite = createServerFn({ method: "POST" })
             to: match ? match.question : `What does ${cleanedPage.brandName} show under ${label}?`,
           };
         })
-        .filter((r) => r.from !== r.to);
+        .filter(
+          (r, i, all) => r.from !== r.to && all.findIndex((other) => other.to === r.to) === i,
+        );
       generative.aeo_content.structured_formats = [
         ...(cleanedPage.specs.length
           ? [{ label: "Facts table", recommendation: `Present ${cleanedPage.specs.slice(0, 4).map((s) => s.label).join(", ")} in a two-column table.` }]
