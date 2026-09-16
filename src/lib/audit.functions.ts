@@ -1235,8 +1235,18 @@ export const auditSite = createServerFn({ method: "POST" })
       // Rewrite each heading using its own words — never pair an unrelated FAQ
       // question with a section label.
       const headingWords = (t: string) => t.replace(/[?:.]+$/, "").trim();
+      // Interface labels ("Select an exchange") are controls, not content sections,
+      // so they are never turned into questions.
+      const uiLabel = /^(select|choose|search|filter|sort|view|browse|sign|log|get|try|start|download|explore|see)\b/i;
       generative.aeo_content.heading_rewrites = headings
-        .filter((h) => (h.level === 2 || h.level === 3) && !isBoilerplateTerm(h.text) && !/\?$/.test(h.text.trim()))
+        .filter(
+          (h) =>
+            (h.level === 2 || h.level === 3) &&
+            !isBoilerplateTerm(h.text) &&
+            !/\?$/.test(h.text.trim()) &&
+            !uiLabel.test(h.text.trim()) &&
+            h.text.trim().split(/\s+/).length >= 2,
+        )
         .slice(0, 6)
         .map((h) => {
           const label = headingWords(h.text);
@@ -1247,7 +1257,10 @@ export const auditSite = createServerFn({ method: "POST" })
               .filter((w) => w.length > 4)
               .some((w) => f.question.toLowerCase().includes(w)),
           );
-          return { from: h.text, to: match ? match.question : `What is ${label} on ${cleanedPage.brandName}?` };
+          return {
+            from: h.text,
+            to: match ? match.question : `What does ${cleanedPage.brandName} show under ${label}?`,
+          };
         })
         .filter((r) => r.from !== r.to);
       generative.aeo_content.structured_formats = [
