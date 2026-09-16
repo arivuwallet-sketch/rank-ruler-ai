@@ -257,7 +257,12 @@ function extractPrimaryKeyword(
     .sort((a, b) => b[1] - a[1])[0]?.[0];
   const entityKeyword = isValidNameToken(entity) ? entity.toLowerCase() : "";
   const chosen = entityKeyword || fromMeta?.toLowerCase() || bestPhrase || fallback.toLowerCase();
-  return isValidNameToken(chosen) ? chosen : fallback.toLowerCase();
+  // A keyword is one search phrase: strip separator-joined tails and questions.
+  const single = (chosen.split(/\s*[·•|–—:]\s*/)[0] ?? chosen)
+    .replace(/[?!.]+$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return single && isValidNameToken(single) ? single : fallback.toLowerCase();
 }
 
 /* ------------------------------------------------------------------ *
