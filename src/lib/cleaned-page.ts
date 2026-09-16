@@ -883,11 +883,56 @@ export function buildGroundedLayers(page: CleanedPage, pageUrl: string, targetLo
         : page.pageType === "faq"
           ? "FAQPage"
           : "WebPage";
-  const shortTail = [
-    ...new Set([page.primaryKeyword, entity.toLowerCase(), brand.toLowerCase(), ...page.specs.slice(0, 4).map((s) => s.label.toLowerCase())]),
-  ]
-    .filter((t) => t && !COLUMN_HEADER_WORD.test(t))
-    .slice(0, 6);
+  // Keyword phrases are normalised, then bucketed by length so nothing lands in
+  // the wrong column and nothing repeats across columns.
+  const clean = (v: string) =>
+    v
+      .toLowerCase()
+      .replace(/[?!.:;"“”]+/g, " ")
+      .replace(/\s*&\s*/g, " and ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const wordCount = (v: string) => v.split(" ").filter(Boolean).length;
+  const usable = (v: string) =>
+    v.length > 2 &&
+    wordCount(v) <= 7 &&
+    !COLUMN_HEADER_WORD.test(v) &&
+    !/^(what|how|why|when|which|who|is|are|does|can|do)\b/.test(v);
+  const used = new Set<string>();
+  const take = (list: string[], limit: number) => {
+    const out: string[] = [];
+    for (const raw of list) {
+      const v = clean(raw);
+      if (!usable(v) || used.has(v)) continue;
+      used.add(v);
+      out.push(v);
+      if (out.length >= limit) break;
+    }
+    return out;
+  };
+  const specLabels = page.specs.map((s) => s.label);
+  const specValues = page.specs.map((s) => s.value);
+  const allTerms = [page.primaryKeyword, entity, brand, ...specLabels, ...specValues];
+  const shortTail = take(allTerms.filter((t) => wordCount(clean(t)) <= 2), 6);
+  const longTail = take(
+    [
+      ...allTerms.filter((t) => wordCount(clean(t)) >= 3),
+      `${page.primaryKeyword} ${page.pageType === "product" ? "specifications" : "explained"}`,
+      ...specLabels.map((l) => `${entity} ${l}`),
+    ],
+    8,
+  );
+  const informational = [
+    ...new Set(
+      faq
+        .map((item) => item.question.toLowerCase().replace(/\s+/g, " ").replace(/\?$/, "").trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 6);
+  const transactional =
+    page.pageType === "product" || page.pageType === "category" || page.pageType === "pricing"
+      ? take([`buy ${page.primaryKeyword}`, `${page.primaryKeyword} price`, `${brand} ${page.primaryKeyword} online`], 4)
+      : take([`${brand} pricing`, `${brand} sign up`, `try ${brand}`], 3);
   const geoStats = [
     ...page.specs.filter((spec) => /\d/.test(spec.value)).map((spec) => `${spec.label}: ${spec.value}`),
     ...page.entityDescription.split(/(?<=[.!?])\s+/).filter((s) => /\d/.test(s) && !looksRunTogether(s)),
