@@ -1135,14 +1135,28 @@ export const auditSite = createServerFn({ method: "POST" })
     // the report when the cleaner has identified a more specific entity.
     if (!cleanContentError(cleanedPage)) {
       // Purpose comes from real body content — never the hero headline alone.
-      pageContext.business = `${cleanedPage.brandName} — ${(
-        cleanedPage.pagePurpose.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) ||
-        cleanedPage.primaryEntity
-      ).replace(/[.\s]+$/, "")}.`;
+      const purposeLine = (
+        cleanedPage.pagePurpose.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) || cleanedPage.primaryEntity
+      ).replace(/[.\s]+$/, "");
+      // Don't repeat the brand when the sentence already names it.
+      pageContext.business = new RegExp(`^${cleanedPage.brandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(
+        purposeLine,
+      )
+        ? `${purposeLine}.`
+        : `${cleanedPage.brandName} — ${purposeLine}.`;
       pageContext.intent = cleanedPage.searchIntent;
       pageContext.primaryKeyword = cleanedPage.primaryKeyword;
+      // A secondary keyword must read like a search phrase: no questions, no fragments.
       pageContext.secondaryKeyword =
-        cleanedPage.specs[0]?.value.toLowerCase().slice(0, 80) ?? "";
+        [
+          ...cleanedPage.specs.map((s) => s.label),
+          ...cleanedPage.specs.map((s) => s.value),
+        ]
+          .map((v) => v.toLowerCase().replace(/[?:.]+$/, "").trim())
+          .find((v) => {
+            const n = v.split(/\s+/).filter(Boolean).length;
+            return n >= 2 && n <= 5 && !/[?!]/.test(v) && !/^(what|how|why|when|which|who|is|are|does|can)\b/.test(v);
+          }) ?? "";
       
       pageContext.evidence = [
         `Page entity: "${cleanedPage.primaryEntity}"`,
@@ -1211,17 +1225,47 @@ export const auditSite = createServerFn({ method: "POST" })
       };
       generative.context.brandName = cleanedPage.brand;
       generative.context.entity = `${cleanedPage.brand} — ${cleanedPage.primaryEntity}`;
-      generative.context.primaryKeyword = g.keywordMatrix.shortTail[0] ?? cleanedPage.primaryEntity.toLowerCase();
+      generative.context.primaryKeyword =
+        cleanedPage.primaryKeyword || g.keywordMatrix.shortTail[0] || cleanedPage.primaryEntity.toLowerCase();
       generative.context.secondaryKeyword = g.keywordMatrix.longTail[0] ?? "";
       generative.context.questions = g.faq.map((f) => f.question);
       generative.aeo_content.primary_question_heading = g.faq[0]?.question ?? generative.aeo_content.primary_question_heading;
       generative.aeo_content.direct_answer_capsule = g.directAnswerCapsule;
       generative.aeo_content.answer_word_count = g.directAnswerCapsule.split(/\s+/).filter(Boolean).length;
       generative.aeo_content.faqs = g.faq;
+      // Rewrite each heading using its own words — never pair an unrelated FAQ
+      // question with a section label.
+      const headingWords = (t: string) => t.replace(/[?:.]+$/, "").trim();
+      // Interface labels ("Select an exchange") are controls, not content sections,
+      // so they are never turned into questions.
+      const uiLabel = /^(select|choose|search|filter|sort|view|browse|sign|log|get|try|start|download|explore|see)\b/i;
       generative.aeo_content.heading_rewrites = headings
-        .filter((h) => (h.level === 2 || h.level === 3) && !isBoilerplateTerm(h.text))
-        .slice(0, g.faq.length)
-        .map((h, i) => ({ from: h.text, to: g.faq[i]?.question ?? h.text }));
+        .filter(
+          (h) =>
+            (h.level === 2 || h.level === 3) &&
+            !isBoilerplateTerm(h.text) &&
+            !/\?$/.test(h.text.trim()) &&
+            !uiLabel.test(h.text.trim()) &&
+            h.text.trim().split(/\s+/).length >= 2,
+        )
+        .slice(0, 6)
+        .map((h) => {
+          const label = headingWords(h.text);
+          const match = g.faq.find((f) =>
+            label
+              .toLowerCase()
+              .split(/\s+/)
+              .filter((w) => w.length > 4)
+              .some((w) => f.question.toLowerCase().includes(w)),
+          );
+          return {
+            from: h.text,
+            to: match ? match.question : `What does ${cleanedPage.brandName} show under ${label}?`,
+          };
+        })
+        .filter(
+          (r, i, all) => r.from !== r.to && all.findIndex((other) => other.to === r.to) === i,
+        );
       generative.aeo_content.structured_formats = [
         ...(cleanedPage.specs.length
           ? [{ label: "Facts table", recommendation: `Present ${cleanedPage.specs.slice(0, 4).map((s) => s.label).join(", ")} in a two-column table.` }]
