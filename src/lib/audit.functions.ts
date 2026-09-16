@@ -1146,8 +1146,17 @@ export const auditSite = createServerFn({ method: "POST" })
         : `${cleanedPage.brandName} — ${purposeLine}.`;
       pageContext.intent = cleanedPage.searchIntent;
       pageContext.primaryKeyword = cleanedPage.primaryKeyword;
+      // A secondary keyword must read like a search phrase: no questions, no fragments.
       pageContext.secondaryKeyword =
-        cleanedPage.specs[0]?.value.toLowerCase().slice(0, 80) ?? "";
+        [
+          ...cleanedPage.specs.map((s) => s.label),
+          ...cleanedPage.specs.map((s) => s.value),
+        ]
+          .map((v) => v.toLowerCase().replace(/[?:.]+$/, "").trim())
+          .find((v) => {
+            const n = v.split(/\s+/).filter(Boolean).length;
+            return n >= 2 && n <= 5 && !/[?!]/.test(v) && !/^(what|how|why|when|which|who|is|are|does|can)\b/.test(v);
+          }) ?? "";
       
       pageContext.evidence = [
         `Page entity: "${cleanedPage.primaryEntity}"`,
