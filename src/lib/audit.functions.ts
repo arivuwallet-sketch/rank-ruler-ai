@@ -1225,7 +1225,8 @@ export const auditSite = createServerFn({ method: "POST" })
       };
       generative.context.brandName = cleanedPage.brand;
       generative.context.entity = `${cleanedPage.brand} — ${cleanedPage.primaryEntity}`;
-      generative.context.primaryKeyword = g.keywordMatrix.shortTail[0] ?? cleanedPage.primaryEntity.toLowerCase();
+      generative.context.primaryKeyword =
+        cleanedPage.primaryKeyword || g.keywordMatrix.shortTail[0] || cleanedPage.primaryEntity.toLowerCase();
       generative.context.secondaryKeyword = g.keywordMatrix.longTail[0] ?? "";
       generative.context.questions = g.faq.map((f) => f.question);
       generative.aeo_content.primary_question_heading = g.faq[0]?.question ?? generative.aeo_content.primary_question_heading;
