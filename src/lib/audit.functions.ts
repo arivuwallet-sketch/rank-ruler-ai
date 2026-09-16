@@ -1135,10 +1135,15 @@ export const auditSite = createServerFn({ method: "POST" })
     // the report when the cleaner has identified a more specific entity.
     if (!cleanContentError(cleanedPage)) {
       // Purpose comes from real body content — never the hero headline alone.
-      pageContext.business = `${cleanedPage.brandName} — ${(
-        cleanedPage.pagePurpose.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) ||
-        cleanedPage.primaryEntity
-      ).replace(/[.\s]+$/, "")}.`;
+      const purposeLine = (
+        cleanedPage.pagePurpose.split(/(?<=[.!?])\s+/)[0]?.slice(0, 240) || cleanedPage.primaryEntity
+      ).replace(/[.\s]+$/, "");
+      // Don't repeat the brand when the sentence already names it.
+      pageContext.business = new RegExp(`^${cleanedPage.brandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(
+        purposeLine,
+      )
+        ? `${purposeLine}.`
+        : `${cleanedPage.brandName} — ${purposeLine}.`;
       pageContext.intent = cleanedPage.searchIntent;
       pageContext.primaryKeyword = cleanedPage.primaryKeyword;
       pageContext.secondaryKeyword =
