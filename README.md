@@ -48,13 +48,13 @@ bun run format:check
 bun run build
 ```
 
-Run the full verification pipeline with:
+Run the blocking verification pipeline with:
 
 ```sh
 bun run check
 ```
 
-GitHub Actions runs the same typecheck, lint and production build checks for pushes and pull requests targeting `main`.
+`bun run check` performs strict TypeScript validation followed by a production build. GitHub Actions blocks pushes and pull requests on those checks. Lint also runs in CI as a non-blocking audit while the repository's existing Prettier baseline is cleaned up; `bun run lint` remains available locally for the complete report.
 
 ## Production endpoints and discovery
 

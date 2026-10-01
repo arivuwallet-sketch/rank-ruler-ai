@@ -22,7 +22,10 @@ const MAX_HTML_BYTES = 1_500_000;
 const MAX_AUX_BYTES = 2_000_000;
 
 function isPrivateHostname(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  const host = hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
 
   if (
     host === "localhost" ||
