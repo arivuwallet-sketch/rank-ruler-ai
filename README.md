@@ -1,26 +1,73 @@
-# SEO AI Powerhouse
+# Rank Ruler AI
 
-you need to create a most powerful advanced SEO AI Agent website add everything in the image
+Rank Ruler AI is an AI-powered SEO auditing and optimization application built with TanStack Start, React 19, TypeScript, Tailwind CSS and Bun. It scans public websites, prioritizes SEO issues, analyzes page context and keyword signals, and generates practical optimization guidance.
 
-This project was built with [Lovable](https://lovable.dev).
+**Live app:** https://rank-ruler-ai.lovable.app
 
-**Live app**: https://rank-ruler-ai.lovable.app
+## What it does
 
-## Build with Lovable
+- Audits technical SEO, metadata, headings, canonicals, robots directives and sitemaps.
+- Reviews speed-related signals including TTFB, HTML size, compression and render-blocking assets.
+- Analyzes content, keywords, internal/external links and structured data.
+- Evaluates AI/search visibility signals and page context.
+- Produces rewrite and optimization suggestions for titles, descriptions, headings and content.
+- Connects to published Lovable projects and custom domains for pre-scan checks.
+- Includes analytics, keyword, growth and fix-oriented application modules.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/9dbb6837-7e2e-4373-bbc3-ab014e05e5a5).
+## Stack
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+- TanStack Start / TanStack Router
+- React 19
+- TypeScript
+- TanStack Query
+- Tailwind CSS 4
+- Radix UI
+- React Three Fiber / Three.js
+- Zod
+- Bun + Vite
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Bun is recommended because the repository includes `bun.lock`.
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+git clone https://github.com/arivuwallet-sketch/rank-ruler-ai.git
+cd rank-ruler-ai
+bun install
+bun run dev
 ```
+
+The app is then served by Vite in development mode.
+
+## Quality checks
+
+```sh
+bun run typecheck
+bun run lint
+bun run format:check
+bun run build
+```
+
+Run the full verification pipeline with:
+
+```sh
+bun run check
+```
+
+GitHub Actions runs the same typecheck, lint and production build checks for pushes and pull requests targeting `main`.
+
+## Production endpoints and discovery
+
+- `/healthz` — lightweight application health response.
+- `/robots.txt` — crawler policy and sitemap discovery.
+- `/sitemap.xml` — current public route sitemap.
+- `/llms.txt` — concise AI-agent/product description.
+- `/site.webmanifest` — installable web-app metadata.
+
+## Lovable sync
+
+This project is connected to [Lovable](https://lovable.dev). Commits pushed to `main` sync back into the Lovable project. Keep published Git history linear and avoid force-pushing, rebasing or amending commits that Lovable has already synced.
+
+## Important note
+
+SEO recommendations are diagnostic guidance, not guaranteed ranking outcomes. Search engines continually change ranking, crawling and presentation systems, so production decisions should be validated against current first-party webmaster documentation and real analytics/search-console data.

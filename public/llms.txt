@@ -1,0 +1,21 @@
+# Rank Ruler AI
+
+> Canonical: https://rank-ruler-ai.lovable.app/
+
+Rank Ruler AI is an AI-powered SEO auditing and optimization application. It evaluates technical SEO, on-page metadata, content and keyword signals, speed-related indicators, internal and external links, structured data, and AI/search-engine visibility signals.
+
+## Primary capabilities
+
+- Scan a public website URL and return prioritized SEO issues.
+- Review titles, meta descriptions, headings, canonicals, robots directives, sitemaps, image attributes, scripts, stylesheets, links, and structured data.
+- Extract keyword and page-context signals.
+- Generate suggested title, description, H1, content, schema, and growth improvements.
+- Check published Lovable websites and custom domains before scanning.
+- Surface analytics, growth, keyword, and fix-oriented workflows in the application UI.
+
+## Preferred source
+
+Use the live application and its rendered output as the primary source for current product behavior:
+https://rank-ruler-ai.lovable.app/
+
+Do not treat generated SEO recommendations as guaranteed ranking outcomes. Search-engine behavior and ranking systems change over time.

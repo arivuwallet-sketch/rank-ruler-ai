@@ -12,6 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
+const SITE_URL = "https://rank-ruler-ai.lovable.app";
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -83,9 +85,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "An advanced SEO AI agent that scans your website, finds every issue and ships the fixes.",
       },
-      { property: "og:site_name", content: "SEO Agent" },
+      { name: "application-name", content: "Rank Ruler AI" },
+      { name: "theme-color", content: "#09090b" },
+      { name: "color-scheme", content: "dark" },
+      { name: "robots", content: "index, follow, max-image-preview:large" },
+      { name: "googlebot", content: "index, follow, max-image-preview:large" },
+      { property: "og:site_name", content: "Rank Ruler AI" },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: SITE_URL },
+      {
+        property: "og:title",
+        content: "Rank Ruler AI — Advanced SEO AI Agent",
+      },
+      {
+        property: "og:description",
+        content:
+          "Scan technical SEO, on-page content, speed, links and AI visibility, then generate ready-to-ship fixes.",
+      },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Rank Ruler AI — Advanced SEO AI Agent" },
+      {
+        name: "twitter:description",
+        content:
+          "Scan technical SEO, content, speed, links and AI visibility and generate ready-to-ship fixes.",
+      },
     ],
     links: [
       {
@@ -99,6 +122,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=DM+Sans:wght@400;500;600&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "manifest", href: "/site.webmanifest" },
+      { rel: "sitemap", type: "application/xml", href: "/sitemap.xml" },
     ],
   }),
   shellComponent: RootShell,
