@@ -40,7 +40,8 @@ function isPrivateHostname(hostname: string): boolean {
     ipv4.length === 4 &&
     ipv4.every((part) => Number.isInteger(part) && part >= 0 && part <= 255)
   ) {
-    const [a, b] = ipv4;
+    const a = ipv4[0] ?? -1;
+    const b = ipv4[1] ?? -1;
     return (
       a === 0 ||
       a === 10 ||
